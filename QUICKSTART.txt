@@ -1,0 +1,243 @@
+DRONE-CDS QUICKSTART
+====================
+
+GET RUNNING IN 5 MINUTES
+-------------------------
+
+1. CLONE AND SETUP
+   
+   cd drone-cds
+   cp .env.example .env
+   
+   Edit .env and set:
+   - POSTGRES_PASSWORD
+   - SECRET_KEY (generate with: openssl rand -hex 32)
+   - ADMIN_PASSWORD
+
+2. START SERVICES
+   
+   ./deploy.sh development
+   
+   This starts:
+   - PostgreSQL with PostGIS
+   - Backend API on port 8000
+   - Dashboard on port 3000
+
+3. VERIFY DEPLOYMENT
+   
+   ./test_system.sh
+   
+   All checks should pass.
+
+4. ACCESS DASHBOARD
+   
+   Open: http://localhost:3000
+   Login: admin@dronecds.local / <your ADMIN_PASSWORD>
+
+5. CREATE A DEVICE
+   
+   Option A - Via API:
+   
+   curl -X POST http://localhost:8000/api/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@dronecds.local","password":"changeme123"}' \
+     | jq -r '.access_token' > token.txt
+   
+   curl -X POST http://localhost:8000/api/v1/devices \
+     -H "Authorization: Bearer $(cat token.txt)" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"test-drone","device_type":"drone"}' \
+     | jq .
+   
+   Save the device ID and API key.
+   
+   Option B - Via script:
+   
+   docker-compose exec backend python -m app.scripts.create_device \
+     --name test-drone --type drone
+
+6. RUN EDGE DEVICE (MOCK MODE)
+   
+   cd edge
+   pip install -r requirements.txt
+   
+   Update config/default.yaml:
+   - Set device.device_id to your device UUID
+   - Set device.api_key to your device API key
+   
+   python main.py --detector mock
+   
+   Synthetic detections will appear in dashboard.
+
+NEXT STEPS
+----------
+
+TRAIN YOUR MODEL
+   See PRODUCTION.txt "STEP 1: MODEL TRAINING"
+   
+   Quick version:
+   1. Prepare dataset with prepare_dataset.py
+   2. Train with train_model.py
+   3. Export to ONNX
+   4. Update edge config with model path
+
+DEPLOY EDGE DEVICE WITH REAL DETECTOR
+   python main.py --detector real
+
+CONFIGURE FOR PRODUCTION
+   See PRODUCTION.txt for full deployment guide
+
+COMMON COMMANDS
+---------------
+
+Start services:
+   docker-compose up -d
+
+Stop services:
+   docker-compose down
+
+View logs:
+   docker-compose logs -f backend
+   docker-compose logs -f dashboard
+
+Database shell:
+   docker-compose exec postgres psql -U dronecds
+
+Create admin user:
+   docker-compose exec backend python -m app.scripts.create_admin \
+     --email admin@example.com --password secure123
+
+Create device:
+   docker-compose exec backend python -m app.scripts.create_device \
+     --name my-device --type drone
+
+Run migrations:
+   docker-compose exec backend alembic upgrade head
+
+Export detections:
+   curl "http://localhost:8000/api/v1/reports/export?format=csv" \
+     -H "Authorization: Bearer $(cat token.txt)" \
+     -o export.csv
+
+TROUBLESHOOTING
+---------------
+
+Backend won't start:
+   - Check .env file exists
+   - Verify PostgreSQL is running: docker-compose ps
+   - Check logs: docker-compose logs backend
+
+Dashboard shows error:
+   - Verify backend is running: curl http://localhost:8000/healthz
+   - Check browser console for errors
+   - Verify NEXT_PUBLIC_API_URL in dashboard/.env.local
+
+Edge device errors:
+   - Start with --detector mock to isolate model issues
+   - Check API key is correct
+   - Verify backend URL in config
+   - Test camera: ls /dev/video*
+
+No detections appearing:
+   - Check edge device logs
+   - Verify device is created in backend
+   - Check API key is valid
+   - Test with mock detector first
+
+ARCHITECTURE OVERVIEW
+---------------------
+
+   ┌─────────────────┐
+   │  Edge Device    │
+   │  (Jetson/RPi)   │
+   │                 │
+   │  Camera         │
+   │    ↓            │
+   │  YOLOv8n        │
+   │    ↓            │
+   │  Tracker        │
+   │    ↓            │
+   │  Buffer         │
+   │    ↓            │
+   │  Uplink         │
+   └────────┬────────┘
+            │ HTTPS
+            ↓
+   ┌─────────────────┐
+   │  Backend API    │
+   │  (FastAPI)      │
+   │                 │
+   │  Deduplication  │
+   │  Notifications  │
+   │  Storage        │
+   └────────┬────────┘
+            │
+            ↓
+   ┌─────────────────┐
+   │  PostgreSQL     │
+   │  + PostGIS      │
+   └─────────────────┘
+   
+   ┌─────────────────┐
+   │  Dashboard      │
+   │  (Next.js)      │
+   │                 │
+   │  Map View       │
+   │  Detection Mgmt │
+   │  Reports        │
+   └─────────────────┘
+
+KEY FEATURES
+------------
+- Edge inference (99.9% bandwidth reduction vs server-side)
+- Geospatial deduplication (150m radius, 5min window)
+- Real-time detection tracking
+- Role-based access control
+- CSV export for GIS integration
+- Offline operation with buffering
+- TensorRT acceleration on Jetson
+
+FILE LOCATIONS
+--------------
+Backend:     /backend
+Dashboard:   /dashboard
+Edge:        /edge
+Config:      /edge/config/default.yaml
+Models:      /edge/models/
+Docs:        /PRODUCTION.txt, /API_QUICK_REF.txt, /TESTING_GUIDE.txt
+Scripts:     /deploy.sh, /test_system.sh
+
+CONFIGURATION FILES
+-------------------
+.env                          - Environment variables
+edge/config/default.yaml      - Edge device config
+dashboard/.env.local          - Dashboard config
+infra/docker-compose.yml      - Development compose
+infra/docker-compose.prod.yml - Production compose
+
+DEFAULT CREDENTIALS
+-------------------
+Admin:    admin@dronecds.local / changeme123
+Database: dronecds / (set in .env)
+
+CHANGE THESE IN PRODUCTION!
+
+API ENDPOINTS
+-------------
+Authentication:  POST /api/v1/auth/login
+Devices:         GET  /api/v1/devices
+Detections:      GET  /api/v1/detections
+Detection:       GET  /api/v1/detections/{id}
+Update Status:   PATCH /api/v1/detections/{id}
+Notifications:   GET  /api/v1/notifications
+Export:          GET  /api/v1/reports/export
+Health:          GET  /healthz
+
+Full API docs: http://localhost:8000/docs
+
+SUPPORT RESOURCES
+-----------------
+API Reference:    /API_QUICK_REF.txt
+Production Guide: /PRODUCTION.txt
+Testing Guide:    /TESTING_GUIDE.txt
+OpenAPI Docs:     http://localhost:8000/docs
