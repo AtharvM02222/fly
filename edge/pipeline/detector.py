@@ -413,10 +413,10 @@ class RealDetector(DetectorInterface):
         letterboxed = cv2.cvtColor(letterboxed, cv2.COLOR_BGR2RGB)
         
         # Normalize: [0, 255] → [0, 1] → (x - mean) / std
-        img_float = letterboxed.astype(np.float32) / self.config.normalization["scale"]
+        img_float = letterboxed.astype(np.float32) / self.config.normalization.scale
         
-        mean = np.array(self.config.normalization["mean"], dtype=np.float32)
-        std = np.array(self.config.normalization["std"], dtype=np.float32)
+        mean = np.array(self.config.normalization.mean, dtype=np.float32)
+        std = np.array(self.config.normalization.std, dtype=np.float32)
         
         if not np.allclose(mean, 0.0) or not np.allclose(std, 1.0):
             img_float = (img_float - mean) / std
