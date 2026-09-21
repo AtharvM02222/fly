@@ -1,29 +1,20 @@
-/**
- * Device fleet page - monitor all edge devices.
- */
-
 'use client';
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import type { Device } from '@/lib/types';
 import { Cpu, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import styles from './devices.module.css';
-
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
   useEffect(() => {
     loadDevices();
-    // Refresh every 30 seconds
     const interval = setInterval(loadDevices, 30000);
     return () => clearInterval(interval);
   }, []);
-
   const loadDevices = async () => {
     try {
       const data = await apiClient.getDevices();
@@ -36,30 +27,23 @@ export default function DevicesPage() {
       setIsLoading(false);
     }
   };
-
   const getDeviceStatus = (device: Device): 'online' | 'offline' => {
     if (!device.last_seen_at) return 'offline';
-    
     const lastSeen = new Date(device.last_seen_at);
     const now = new Date();
     const diffMinutes = (now.getTime() - lastSeen.getTime()) / 1000 / 60;
-    
     return diffMinutes < 5 ? 'online' : 'offline';
   };
-
   const formatLastSeen = (lastSeenAt: string | null): string => {
     if (!lastSeenAt) return 'Never';
-    
     const lastSeen = new Date(lastSeenAt);
     const now = new Date();
     const diffSeconds = Math.floor((now.getTime() - lastSeen.getTime()) / 1000);
-    
     if (diffSeconds < 60) return `${diffSeconds}s ago`;
     if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
     if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
     return `${Math.floor(diffSeconds / 86400)}d ago`;
   };
-
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -67,7 +51,6 @@ export default function DevicesPage() {
       </div>
     );
   }
-
   if (error) {
     return (
       <div className={styles.container}>
@@ -78,10 +61,8 @@ export default function DevicesPage() {
       </div>
     );
   }
-
   const onlineCount = devices.filter(d => getDeviceStatus(d) === 'online').length;
   const totalDetections = devices.reduce((sum, d) => sum + (d.detection_count || 0), 0);
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -90,8 +71,7 @@ export default function DevicesPage() {
           Refresh
         </button>
       </div>
-
-      {/* Summary cards */}
+      {}
       <div className={styles.summary}>
         <div className={styles.summaryCard}>
           <div className={styles.summaryIcon}>
@@ -102,7 +82,6 @@ export default function DevicesPage() {
             <div className={styles.summaryValue}>{devices.length}</div>
           </div>
         </div>
-
         <div className={styles.summaryCard}>
           <div className={styles.summaryIcon} style={{ background: '#48bb78' }}>
             <CheckCircle size={24} />
@@ -112,7 +91,6 @@ export default function DevicesPage() {
             <div className={styles.summaryValue}>{onlineCount}</div>
           </div>
         </div>
-
         <div className={styles.summaryCard}>
           <div className={styles.summaryIcon} style={{ background: '#667eea' }}>
             <AlertCircle size={24} />
@@ -123,8 +101,7 @@ export default function DevicesPage() {
           </div>
         </div>
       </div>
-
-      {/* Device list */}
+      {}
       <div className={styles.deviceList}>
         {devices.length === 0 ? (
           <div className={styles.empty}>
@@ -164,7 +141,6 @@ export default function DevicesPage() {
                     )}
                   </div>
                 </div>
-
                 <div className={styles.deviceStats}>
                   <div className={styles.stat}>
                     <Clock size={16} />
@@ -175,7 +151,6 @@ export default function DevicesPage() {
                     <span>Detections: {(device.detection_count || 0).toLocaleString()}</span>
                   </div>
                 </div>
-
                 <div className={styles.deviceFooter}>
                   <span className={styles.deviceId}>ID: {device.id.slice(0, 8)}</span>
                   <span className={styles.deviceCreated}>

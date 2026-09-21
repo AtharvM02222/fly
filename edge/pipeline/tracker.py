@@ -1,111 +1,51 @@
-"""Multi-frame tracking with IoU-based association."""
-
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List
-
 import numpy as np
-
 from config import TrackerConfig
 from .detector import Detection
-
-
 def iou(bbox1: tuple[float, float, float, float], bbox2: tuple[float, float, float, float]) -> float:
-    """
-    Calculate Intersection over Union (IoU) between two bboxes.
-
-    Args:
-        bbox1: First bbox (x1, y1, x2, y2)
-        bbox2: Second bbox (x1, y1, x2, y2)
-
-    Returns:
-        IoU value [0, 1]
-    """
     x1_max = max(bbox1[0], bbox2[0])
     y1_max = max(bbox1[1], bbox2[1])
     x2_min = min(bbox1[2], bbox2[2])
     y2_min = min(bbox1[3], bbox2[3])
-
     intersection_area = max(0, x2_min - x1_max) * max(0, y2_min - y1_max)
-
     bbox1_area = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
     bbox2_area = (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
-
     union_area = bbox1_area + bbox2_area - intersection_area
-
     if union_area == 0:
         return 0.0
-
     return intersection_area / union_area
-
-
 @dataclass
 class Track:
-    """Single tracked object."""
-
     track_id: str
     bbox_xyxy: tuple[float, float, float, float]
     confidence: float
     class_id: int
     class_name: str
-    hits: int = 0  # Consecutive frames with detection
-    age: int = 0  # Frames since last update
-    confirmed: bool = False  # True after min_hits consecutive detections
-
-
+    hits: int = 0
+    age: int = 0
+    confirmed: bool = False
 class Tracker:
-    """
-    IoU-based multi-frame tracker.
-
-    Associates detections across frames to create stable tracks.
-    Only emits "confirmed" detections after N consecutive hits.
-    """
-
     def __init__(self, config: TrackerConfig):
-        """
-        Initialize tracker.
-
-        Args:
-            config: Tracker configuration
-        """
         self.config = config
         self.tracks: Dict[str, Track] = {}
-
     def update(self, detections: List[Detection]) -> List[Track]:
-        """
-        Update tracker with new frame detections.
-
-        Args:
-            detections: Detections from current frame
-
-        Returns:
-            List of confirmed tracks
-        """
-        # Update track ages
         for track in self.tracks.values():
             track.age += 1
-
-        # Associate detections with existing tracks
         matched_tracks = set()
         matched_detections = set()
-
         for det_idx, detection in enumerate(detections):
             best_iou = 0.0
             best_track_id = None
-
-            # Find best matching track
             for track_id, track in self.tracks.items():
                 if track_id in matched_tracks:
                     continue
-
                 iou_value = iou(detection.bbox_xyxy, track.bbox_xyxy)
-
                 if iou_value > self.config.iou_threshold and iou_value > best_iou:
                     best_iou = iou_value
                     best_track_id = track_id
-
             if best_track_id:
-                # Update existing track
                 track = self.tracks[best_track_id]
                 track.bbox_xyxy = detection.bbox_xyxy
                 track.confidence = detection.confidence
@@ -113,12 +53,8 @@ class Tracker:
                 track.age = 0
                 matched_tracks.add(best_track_id)
                 matched_detections.add(det_idx)
-
-                # Confirm track after min_hits
                 if track.hits >= self.config.min_hits:
                     track.confirmed = True
-
-        # Create new tracks for unmatched detections
         for det_idx, detection in enumerate(detections):
             if det_idx not in matched_detections:
                 track_id = str(uuid.uuid4())
@@ -132,8 +68,6 @@ class Tracker:
                     age=0,
                     confirmed=False,
                 )
-
-        # Remove stale tracks (age > max_age)
         stale_tracks = [
             track_id
             for track_id, track in self.tracks.items()
@@ -141,10 +75,6 @@ class Tracker:
         ]
         for track_id in stale_tracks:
             del self.tracks[track_id]
-
-        # Return only confirmed tracks
         return [track for track in self.tracks.values() if track.confirmed]
-
     def reset(self) -> None:
-        """Reset tracker state."""
         self.tracks.clear()

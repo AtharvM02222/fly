@@ -1,5 +1,3 @@
-"""Edge configuration loader and validator."""
-
 from .loader import (
     load_config,
     Config,
@@ -13,7 +11,6 @@ from .loader import (
     UplinkConfig,
     NormalizationConfig,
 )
-
 __all__ = [
     "load_config",
     "Config",

@@ -1,9 +1,4 @@
-/**
- * Leaflet map component with marker clustering.
- */
-
 'use client';
-
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import L from 'leaflet';
@@ -13,39 +8,31 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
 import type { Detection } from '@/lib/types';
 import styles from './map.module.css';
-
-// Fix Leaflet default marker icon paths in Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl: 'https:
+  iconUrl: 'https:
+  shadowUrl: 'https:
 });
-
 interface MapProps {
   detections: Detection[];
   onBoundsChange?: (bbox: { min_lat: number; min_lon: number; max_lat: number; max_lon: number }) => void;
 }
-
-// Custom marker colors by severity
 const getSeverityColor = (severity: string): string => {
   switch (severity) {
     case 'high':
-      return '#e53e3e'; // red
+      return '#e53e3e'; 
     case 'medium':
-      return '#ed8936'; // orange
+      return '#ed8936'; 
     case 'low':
-      return '#ecc94b'; // yellow
+      return '#ecc94b'; 
     default:
-      return '#718096'; // gray
+      return '#718096'; 
   }
 };
-
-// Custom marker HTML
 const createCustomIcon = (detection: Detection): L.DivIcon => {
   const color = getSeverityColor(detection.severity);
   const isNew = detection.status === 'new';
-  
   return L.divIcon({
     className: 'custom-marker',
     html: `
@@ -64,30 +51,21 @@ const createCustomIcon = (detection: Detection): L.DivIcon => {
     popupAnchor: [0, -12],
   });
 };
-
 export default function Map({ detections, onBoundsChange }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.MarkerClusterGroup | null>(null);
   const router = useRouter();
-
-  // Initialize map
   useEffect(() => {
-    if (mapRef.current) return; // Already initialized
-
-    // Default center (San Francisco)
+    if (mapRef.current) return; 
     const map = L.map('map', {
       center: [37.7749, -122.4194],
       zoom: 13,
       zoomControl: true,
     });
-
-    // Add tile layer (OpenStreetMap)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    L.tileLayer('https:
+      attribution: '&copy; <a href="https:
       maxZoom: 19,
     }).addTo(map);
-
-    // Initialize marker cluster group
     const markers = L.markerClusterGroup({
       chunkedLoading: true,
       spiderfyOnMaxZoom: true,
@@ -97,10 +75,8 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
       iconCreateFunction: (cluster) => {
         const count = cluster.getChildCount();
         let size = 'small';
-        
         if (count >= 100) size = 'large';
         else if (count >= 10) size = 'medium';
-
         return L.divIcon({
           html: `<div><span>${count}</span></div>`,
           className: `marker-cluster marker-cluster-${size}`,
@@ -108,10 +84,7 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
         });
       },
     });
-
     map.addLayer(markers);
-
-    // Listen for bounds changes
     map.on('moveend', () => {
       if (onBoundsChange) {
         const bounds = map.getBounds();
@@ -123,34 +96,23 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
         });
       }
     });
-
     mapRef.current = map;
     markersRef.current = markers;
-
-    // Cleanup on unmount
     return () => {
       map.remove();
       mapRef.current = null;
       markersRef.current = null;
     };
   }, [onBoundsChange]);
-
-  // Update markers when detections change
   useEffect(() => {
     if (!markersRef.current) return;
-
     const markers = markersRef.current;
     markers.clearLayers();
-
     if (detections.length === 0) return;
-
-    // Add markers
     detections.forEach((detection) => {
       const marker = L.marker([detection.latitude, detection.longitude], {
         icon: createCustomIcon(detection),
       });
-
-      // Popup content
       const popupContent = `
         <div style="min-width: 200px; font-family: system-ui, -apple-system, sans-serif;">
           <div style="margin-bottom: 8px;">
@@ -197,20 +159,13 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
           </button>
         </div>
       `;
-
       marker.bindPopup(popupContent, {
         maxWidth: 250,
       });
-
-      // Click handler for marker (alternative to popup button)
       marker.on('click', () => {
-        // Popup will open automatically, button handles navigation
       });
-
       markers.addLayer(marker);
     });
-
-    // Fit bounds to markers if we have detections
     if (detections.length > 0 && mapRef.current) {
       const bounds = markers.getBounds();
       if (bounds.isValid()) {
@@ -218,7 +173,6 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
       }
     }
   }, [detections, router]);
-
   return (
     <>
       <style jsx global>{`
@@ -232,7 +186,6 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
             transform: scale(1.1);
           }
         }
-
         .marker-cluster {
           background: rgba(49, 130, 206, 0.6);
           border-radius: 50%;
@@ -241,7 +194,6 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
           border: 3px solid white;
           box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         }
-
         .marker-cluster div {
           width: 34px;
           height: 34px;
@@ -252,41 +204,32 @@ export default function Map({ detections, onBoundsChange }: MapProps) {
           align-items: center;
           justify-content: center;
         }
-
         .marker-cluster span {
           color: white;
           font-size: 13px;
         }
-
         .marker-cluster-small {
           background: rgba(49, 130, 206, 0.6);
         }
-
         .marker-cluster-small div {
           background: rgba(49, 130, 206, 0.8);
         }
-
         .marker-cluster-medium {
           background: rgba(237, 137, 54, 0.6);
         }
-
         .marker-cluster-medium div {
           background: rgba(237, 137, 54, 0.8);
         }
-
         .marker-cluster-large {
           background: rgba(229, 62, 62, 0.6);
         }
-
         .marker-cluster-large div {
           background: rgba(229, 62, 62, 0.8);
         }
-
         .leaflet-popup-content-wrapper {
           border-radius: 8px;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
-
         .leaflet-popup-content {
           margin: 12px;
         }

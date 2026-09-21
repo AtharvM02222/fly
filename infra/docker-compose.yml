@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   postgres:
     image: postgis/postgis:16-3.4
@@ -20,7 +19,6 @@ services:
       retries: 5
     networks:
       - dronecds
-
   redis:
     image: redis:7-alpine
     container_name: dronecds-redis
@@ -35,7 +33,6 @@ services:
       retries: 5
     networks:
       - dronecds
-
   minio:
     image: minio/minio:latest
     container_name: dronecds-minio
@@ -55,7 +52,6 @@ services:
       retries: 5
     networks:
       - dronecds
-
   backend:
     build:
       context: ../backend
@@ -92,7 +88,6 @@ services:
     volumes:
       - ../backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
   dashboard:
     build:
       context: ../dashboard
@@ -110,12 +105,10 @@ services:
       - ../dashboard:/app
       - /app/node_modules
       - /app/.next
-
 volumes:
   postgres_data:
   redis_data:
   minio_data:
-
 networks:
   dronecds:
     driver: bridge

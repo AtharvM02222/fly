@@ -1,26 +1,17 @@
-/**
- * Map view - main dashboard page with Leaflet clustering.
- */
-
 'use client';
-
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient, getErrorMessage } from '@/lib/api-client';
 import type { Detection, DetectionFilters, DetectionSeverity, DetectionStatus } from '@/lib/types';
 import styles from './map.module.css';
-
-// Dynamic import to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('@/components/map'), { ssr: false });
-
 export default function MapPage() {
   const [detections, setDetections] = useState<Detection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<DetectionFilters>({
-    page_size: 1000, // Load up to 1000 for map view
+    page_size: 1000, 
   });
-
   const loadDetections = useCallback(async () => {
     try {
       setLoading(true);
@@ -33,25 +24,21 @@ export default function MapPage() {
       setLoading(false);
     }
   }, [filters]);
-
   useEffect(() => {
     loadDetections();
   }, [loadDetections]);
-
   const handleFilterChange = (key: keyof DetectionFilters, value: any) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value || undefined,
     }));
   };
-
   const handleMapBoundsChange = (bbox: { min_lat: number; min_lon: number; max_lat: number; max_lon: number }) => {
     setFilters((prev) => ({
       ...prev,
       bbox,
     }));
   };
-
   return (
     <div className={styles.container}>
       <div className={styles.sidebar}>
@@ -64,7 +51,6 @@ export default function MapPage() {
             Clear All
           </button>
         </div>
-
         <div className={styles.filterGroup}>
           <label>Status</label>
           <select
@@ -80,7 +66,6 @@ export default function MapPage() {
             <option value="verified">Verified</option>
           </select>
         </div>
-
         <div className={styles.filterGroup}>
           <label>Severity</label>
           <select
@@ -94,7 +79,6 @@ export default function MapPage() {
             <option value="high">High</option>
           </select>
         </div>
-
         <div className={styles.filterGroup}>
           <label>Date Range</label>
           <input
@@ -112,7 +96,6 @@ export default function MapPage() {
             placeholder="End date"
           />
         </div>
-
         <div className={styles.stats}>
           <h3>Statistics</h3>
           <div className={styles.statItem}>
@@ -139,7 +122,6 @@ export default function MapPage() {
           </div>
         </div>
       </div>
-
       <div className={styles.mapContainer}>
         {error && (
           <div className={styles.error}>
@@ -149,14 +131,12 @@ export default function MapPage() {
             </button>
           </div>
         )}
-        
         {loading && (
           <div className={styles.loading}>
             <div className={styles.spinner} />
             <p>Loading detections...</p>
           </div>
         )}
-
         <Map
           detections={detections}
           onBoundsChange={handleMapBoundsChange}

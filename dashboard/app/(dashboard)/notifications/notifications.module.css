@@ -3,32 +3,27 @@
   max-width: 1000px;
   margin: 0 auto;
 }
-
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 2rem;
 }
-
 .title {
   font-size: 2rem;
   font-weight: 700;
   color: #1a202c;
   margin: 0 0 0.25rem 0;
 }
-
 .subtitle {
   font-size: 0.875rem;
   color: #718096;
   margin: 0;
 }
-
 .filters {
   display: flex;
   gap: 0.5rem;
 }
-
 .filterButton {
   padding: 0.5rem 1rem;
   background: white;
@@ -40,18 +35,15 @@
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .filterButton:hover {
   border-color: #cbd5e0;
   background: #f7fafc;
 }
-
 .filterButton.active {
   background: #667eea;
   border-color: #667eea;
   color: white;
 }
-
 .loading {
   display: flex;
   align-items: center;
@@ -60,14 +52,12 @@
   color: #718096;
   font-size: 1.125rem;
 }
-
 .content {
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
-
 .empty {
   display: flex;
   flex-direction: column;
@@ -77,28 +67,23 @@
   color: #a0aec0;
   text-align: center;
 }
-
 .empty svg {
   margin-bottom: 1rem;
 }
-
 .empty p {
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
   font-weight: 600;
   color: #718096;
 }
-
 .empty span {
   font-size: 0.875rem;
   color: #a0aec0;
 }
-
 .notificationList {
   display: flex;
   flex-direction: column;
 }
-
 .notification {
   position: relative;
   display: flex;
@@ -108,23 +93,18 @@
   cursor: pointer;
   transition: background 0.2s;
 }
-
 .notification:last-child {
   border-bottom: none;
 }
-
 .notification:hover {
   background: #f7fafc;
 }
-
 .notification.unread {
   background: #f0f4ff;
 }
-
 .notification.unread:hover {
   background: #e6edff;
 }
-
 .unreadIndicator {
   position: absolute;
   left: 0;
@@ -133,7 +113,6 @@
   width: 4px;
   background: #667eea;
 }
-
 .notificationIcon {
   flex-shrink: 0;
   width: 40px;
@@ -144,12 +123,10 @@
   align-items: center;
   justify-content: center;
 }
-
 .notificationContent {
   flex: 1;
   min-width: 0;
 }
-
 .notificationHeader {
   display: flex;
   justify-content: space-between;
@@ -157,14 +134,12 @@
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
-
 .notificationTitle {
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
   margin: 0;
 }
-
 .readBadge {
   display: flex;
   align-items: center;
@@ -177,7 +152,6 @@
   font-weight: 600;
   white-space: nowrap;
 }
-
 .notificationDetails {
   display: flex;
   flex-wrap: wrap;
@@ -186,28 +160,23 @@
   color: #4a5568;
   margin-bottom: 0.75rem;
 }
-
 .notificationDetails strong {
   font-weight: 600;
   color: #2d3748;
 }
-
 .notificationFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 0.75rem;
 }
-
 .timestamp {
   color: #a0aec0;
 }
-
 .viewLink {
   color: #667eea;
   font-weight: 600;
 }
-
 .notification:hover .viewLink {
   text-decoration: underline;
 }

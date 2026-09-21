@@ -1,15 +1,9 @@
-/**
- * Detection detail page - view and update individual detection.
- */
-
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { apiClient, getErrorMessage } from '@/lib/api-client';
 import type { Detection, DetectionEvent, DetectionStatus, User } from '@/lib/types';
 import styles from './detection-detail.module.css';
-
 const STATUS_OPTIONS: { value: DetectionStatus; label: string }[] = [
   { value: 'new', label: 'New' },
   { value: 'confirmed', label: 'Confirmed' },
@@ -17,30 +11,24 @@ const STATUS_OPTIONS: { value: DetectionStatus; label: string }[] = [
   { value: 'fixed', label: 'Fixed' },
   { value: 'verified', label: 'Verified' },
 ];
-
 export default function DetectionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const detectionId = params.id as string;
-
   const [detection, setDetection] = useState<Detection | null>(null);
   const [events, setEvents] = useState<DetectionEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-
-  // Status update form
   const [newStatus, setNewStatus] = useState<DetectionStatus>('new');
   const [note, setNote] = useState('');
-
   useEffect(() => {
     const currentUser = apiClient.getCurrentUser();
     setUser(currentUser);
     loadDetection();
     loadEvents();
   }, [detectionId]);
-
   const loadDetection = async () => {
     try {
       setLoading(true);
@@ -54,7 +42,6 @@ export default function DetectionDetailPage() {
       setLoading(false);
     }
   };
-
   const loadEvents = async () => {
     try {
       const data = await apiClient.getDetectionEvents(detectionId);
@@ -63,27 +50,19 @@ export default function DetectionDetailPage() {
       console.error('Failed to load events:', err);
     }
   };
-
   const handleStatusUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!detection) return;
-
     try {
       setUpdating(true);
       setError(null);
-      
       const updated = await apiClient.updateDetection(detectionId, {
         status: newStatus,
         note: note.trim() || undefined,
       });
-      
       setDetection(updated);
       setNote('');
-      
-      // Reload events to show the new status change
       await loadEvents();
-      
-      // Show success (optional toast notification)
       alert('Status updated successfully');
     } catch (err) {
       setError(getErrorMessage(err));
@@ -91,9 +70,7 @@ export default function DetectionDetailPage() {
       setUpdating(false);
     }
   };
-
   const canUpdateStatus = user?.role === 'admin' || user?.role === 'operator';
-
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -102,7 +79,6 @@ export default function DetectionDetailPage() {
       </div>
     );
   }
-
   if (error || !detection) {
     return (
       <div className={styles.error}>
@@ -114,7 +90,6 @@ export default function DetectionDetailPage() {
       </div>
     );
   }
-
   const getSeverityColor = (severity: string): string => {
     switch (severity) {
       case 'high': return '#e53e3e';
@@ -123,7 +98,6 @@ export default function DetectionDetailPage() {
       default: return '#718096';
     }
   };
-
   const getStatusColor = (status: string): string => {
     switch (status) {
       case 'new': return '#3182ce';
@@ -134,7 +108,6 @@ export default function DetectionDetailPage() {
       default: return '#718096';
     }
   };
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -157,9 +130,8 @@ export default function DetectionDetailPage() {
           </span>
         </div>
       </div>
-
       <div className={styles.grid}>
-        {/* Image Section */}
+        {}
         <div className={styles.imageSection}>
           <div className={styles.card}>
             <h2>Detection Image</h2>
@@ -195,7 +167,6 @@ export default function DetectionDetailPage() {
                 <p>No image available</p>
               </div>
             )}
-            
             <div className={styles.metadata}>
               <div className={styles.metaItem}>
                 <strong>Confidence:</strong>
@@ -207,56 +178,47 @@ export default function DetectionDetailPage() {
               </div>
               {detection.is_interpolated && (
                 <div className={styles.interpolatedBadge}>
-                  ⚠️ GPS Interpolated
+                   GPS Interpolated
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        {/* Info Section */}
+        {}
         <div className={styles.infoSection}>
           <div className={styles.card}>
             <h2>Detection Information</h2>
-            
             <div className={styles.infoGrid}>
               <div className={styles.infoItem}>
                 <label>ID</label>
                 <span className={styles.monospace}>{detection.id}</span>
               </div>
-              
               <div className={styles.infoItem}>
                 <label>Client ID</label>
                 <span className={styles.monospace}>{detection.client_detection_id}</span>
               </div>
-              
               <div className={styles.infoItem}>
                 <label>Device</label>
                 <span>{detection.device?.name || detection.device_id}</span>
               </div>
-              
               <div className={styles.infoItem}>
                 <label>Detected At</label>
                 <span>{new Date(detection.detected_at).toLocaleString()}</span>
               </div>
-              
               <div className={styles.infoItem}>
                 <label>Created At</label>
                 <span>{new Date(detection.created_at).toLocaleString()}</span>
               </div>
-              
               <div className={styles.infoItem}>
                 <label>Location</label>
                 <span>
                   {detection.latitude.toFixed(6)}, {detection.longitude.toFixed(6)}
                 </span>
               </div>
-              
               <div className={styles.infoItem}>
                 <label>Geohash</label>
                 <span className={styles.monospace}>{detection.geohash}</span>
               </div>
-              
               {detection.merged_into && (
                 <div className={styles.infoItem}>
                   <label>Merged Into</label>
@@ -264,20 +226,18 @@ export default function DetectionDetailPage() {
                 </div>
               )}
             </div>
-
             <div className={styles.mapLink}>
               <a
-                href={`https://www.google.com/maps?q=${detection.latitude},${detection.longitude}`}
+                href={`https:
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.button}
               >
-                📍 View on Google Maps
+                 View on Google Maps
               </a>
             </div>
           </div>
-
-          {/* Status Update Form */}
+          {}
           {canUpdateStatus && (
             <div className={styles.card}>
               <h2>Update Status</h2>
@@ -298,7 +258,6 @@ export default function DetectionDetailPage() {
                     ))}
                   </select>
                 </div>
-
                 <div className={styles.formGroup}>
                   <label htmlFor="note">Note (optional)</label>
                   <textarea
@@ -311,7 +270,6 @@ export default function DetectionDetailPage() {
                     disabled={updating}
                   />
                 </div>
-
                 <button
                   type="submit"
                   className={styles.submitButton}
@@ -323,8 +281,7 @@ export default function DetectionDetailPage() {
             </div>
           )}
         </div>
-
-        {/* Events Timeline */}
+        {}
         <div className={styles.eventsSection}>
           <div className={styles.card}>
             <h2>Status History</h2>

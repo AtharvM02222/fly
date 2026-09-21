@@ -1,9 +1,4 @@
-/**
- * Reports page - export detections as CSV or PDF.
- */
-
 'use client';
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,7 +8,6 @@ import type { DetectionFilters } from '@/lib/types';
 import { FileText, Download, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import styles from './reports.module.css';
-
 const reportSchema = z.object({
   format: z.enum(['csv', 'pdf']),
   status: z.string().optional(),
@@ -21,14 +15,11 @@ const reportSchema = z.object({
   start_date: z.string().optional(),
   end_date: z.string().optional(),
 });
-
 type ReportFormData = z.infer<typeof reportSchema>;
-
 export default function ReportsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
   const {
     register,
     handleSubmit,
@@ -39,23 +30,17 @@ export default function ReportsPage() {
       format: 'csv',
     },
   });
-
   const onSubmit = async (data: ReportFormData) => {
     setError(null);
     setSuccess(null);
     setIsExporting(true);
-
     try {
       const filters: DetectionFilters = {};
-      
       if (data.status) filters.status = data.status as any;
       if (data.severity) filters.severity = data.severity as any;
       if (data.start_date) filters.start_date = data.start_date;
       if (data.end_date) filters.end_date = data.end_date;
-
       const blob = await apiClient.exportDetections(filters, data.format);
-      
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -64,7 +49,6 @@ export default function ReportsPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-
       setSuccess(`Successfully exported detections as ${data.format.toUpperCase()}`);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -72,25 +56,21 @@ export default function ReportsPage() {
       setIsExporting(false);
     }
   };
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Export Reports</h1>
       </div>
-
       <div className={styles.content}>
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <FileText size={24} />
             <h2 className={styles.cardTitle}>Export Detections</h2>
           </div>
-
           <p className={styles.cardDescription}>
             Export detection data with optional filters. Choose between CSV format for data analysis
             or PDF format for sharing reports.
           </p>
-
           <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
             {error && (
               <div className={styles.error}>
@@ -98,15 +78,13 @@ export default function ReportsPage() {
                 <span>{error}</span>
               </div>
             )}
-
             {success && (
               <div className={styles.success}>
                 <Download size={20} />
                 <span>{success}</span>
               </div>
             )}
-
-            {/* Format */}
+            {}
             <div className={styles.field}>
               <label className={styles.label}>Export Format</label>
               <div className={styles.radioGroup}>
@@ -129,11 +107,9 @@ export default function ReportsPage() {
                 <span className={styles.fieldError}>{errors.format.message}</span>
               )}
             </div>
-
-            {/* Filters */}
+            {}
             <div className={styles.filters}>
               <h3 className={styles.filtersTitle}>Filters (Optional)</h3>
-
               <div className={styles.filterRow}>
                 <div className={styles.field}>
                   <label htmlFor="status" className={styles.label}>
@@ -153,7 +129,6 @@ export default function ReportsPage() {
                     <option value="verified">Verified</option>
                   </select>
                 </div>
-
                 <div className={styles.field}>
                   <label htmlFor="severity" className={styles.label}>
                     Severity
@@ -171,7 +146,6 @@ export default function ReportsPage() {
                   </select>
                 </div>
               </div>
-
               <div className={styles.filterRow}>
                 <div className={styles.field}>
                   <label htmlFor="start_date" className={styles.label}>
@@ -185,7 +159,6 @@ export default function ReportsPage() {
                     disabled={isExporting}
                   />
                 </div>
-
                 <div className={styles.field}>
                   <label htmlFor="end_date" className={styles.label}>
                     End Date
@@ -200,7 +173,6 @@ export default function ReportsPage() {
                 </div>
               </div>
             </div>
-
             <button
               type="submit"
               className={styles.submitButton}
@@ -217,11 +189,9 @@ export default function ReportsPage() {
             </button>
           </form>
         </div>
-
-        {/* Info card */}
+        {}
         <div className={styles.infoCard}>
           <h3 className={styles.infoTitle}>Export Information</h3>
-          
           <div className={styles.infoSection}>
             <h4>CSV Format</h4>
             <ul>
@@ -231,7 +201,6 @@ export default function ReportsPage() {
               <li>File size: Small (~10KB per 100 detections)</li>
             </ul>
           </div>
-
           <div className={styles.infoSection}>
             <h4>PDF Format</h4>
             <ul>
@@ -241,7 +210,6 @@ export default function ReportsPage() {
               <li>File size: Larger (~100KB per 100 detections)</li>
             </ul>
           </div>
-
           <div className={styles.infoSection}>
             <h4>Data Included</h4>
             <ul>

@@ -1,22 +1,16 @@
-# Drone-CDS Edge Default Configuration
-# Override via environment variables or custom config file
-
 backend:
   url: "http://localhost:8000/api/v1"
   timeout_seconds: 30
-
 device:
   id: "device-001"
   api_key: "replace-with-actual-api-key"
   device_type: "drone"
-
 camera:
-  source: 0  # Local camera index, or video file path, or RTSP URL
+  source: 0  
   frame_sample_rate: 3
   queue_max_size: 10
   width: 1920
   height: 1080
-
 detector:
   model_path: "models/pothole.onnx"
   engine_path: "models/pothole.engine"
@@ -35,12 +29,10 @@ detector:
     std: [1.0, 1.0, 1.0]
     scale: 255.0
   model_version: "v1.0"
-
 tracker:
   iou_threshold: 0.3
   min_hits: 3
   max_age: 30
-
 severity:
   camera_height_m: 2.0
   camera_angle_deg: 45
@@ -48,28 +40,24 @@ severity:
     low_max_area: 5000
     medium_max_area: 15000
     confidence_multiplier: 1.0
-
 gps:
-  source: "/dev/ttyUSB0"  # or "mock" for testing
+  source: "/dev/ttyUSB0"  
   baud_rate: 9600
   timeout_seconds: 2.0
   interpolation:
     enabled: true
     max_age_seconds: 10
     use_imu: false
-
 buffer:
   db_path: "edge/buffer.db"
   max_retries: 10
   cleanup_after_days: 7
-
 uplink:
   batch_size: 10
   interval_seconds: 30
   retry_backoff_base: 2.0
   retry_max_delay_seconds: 300
   jitter_max_seconds: 5.0
-
 logging:
   level: "INFO"
   format: "json"

@@ -6,7 +6,6 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 1rem;
 }
-
 .card {
   background: white;
   border-radius: 8px;
@@ -15,7 +14,6 @@
   width: 100%;
   max-width: 400px;
 }
-
 .title {
   font-size: 1.75rem;
   font-weight: 700;
@@ -23,20 +21,17 @@
   margin: 0 0 0.5rem 0;
   text-align: center;
 }
-
 .subtitle {
   font-size: 0.875rem;
   color: #718096;
   margin: 0 0 2rem 0;
   text-align: center;
 }
-
 .form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
-
 .error {
   background: #fed7d7;
   color: #c53030;
@@ -45,19 +40,16 @@
   font-size: 0.875rem;
   border: 1px solid #fc8181;
 }
-
 .field {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-
 .label {
   font-size: 0.875rem;
   font-weight: 500;
   color: #2d3748;
 }
-
 .input {
   padding: 0.75rem;
   border: 1px solid #e2e8f0;
@@ -65,23 +57,19 @@
   font-size: 1rem;
   transition: border-color 0.2s;
 }
-
 .input:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
-
 .input:disabled {
   background: #f7fafc;
   cursor: not-allowed;
 }
-
 .fieldError {
   font-size: 0.875rem;
   color: #c53030;
 }
-
 .submit {
   background: #667eea;
   color: white;
@@ -93,16 +81,13 @@
   cursor: pointer;
   transition: background 0.2s;
 }
-
 .submit:hover:not(:disabled) {
   background: #5568d3;
 }
-
 .submit:disabled {
   background: #a0aec0;
   cursor: not-allowed;
 }
-
 .footer {
   margin-top: 1.5rem;
   text-align: center;

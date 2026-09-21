@@ -1,8 +1,4 @@
-# Drone-CDS Edge Configuration Schema
-# This file documents the complete configuration surface for the edge pipeline.
-# All config values are validated against this schema on startup.
-
-$schema: "http://json-schema.org/draft-07/schema#"
+$schema: "http://json-schema.org/draft-07/schema
 title: "Edge Pipeline Configuration"
 type: object
 required:
@@ -14,7 +10,6 @@ required:
   - severity
   - buffer
   - uplink
-
 properties:
   backend:
     type: object
@@ -30,7 +25,6 @@ properties:
         minimum: 5
         maximum: 300
         default: 30
-
   device:
     type: object
     description: "Device identity and authentication"
@@ -48,7 +42,6 @@ properties:
         type: string
         enum: [drone, vehicle, fixed]
         default: drone
-
   camera:
     type: object
     description: "Camera capture configuration"
@@ -84,7 +77,6 @@ properties:
         minimum: 480
         maximum: 2160
         default: 1080
-
   detector:
     type: object
     description: "YOLOv8n detector configuration"
@@ -184,7 +176,6 @@ properties:
         type: string
         description: "Model version identifier (written to detection records)"
         default: "v1.0"
-
   tracker:
     type: object
     description: "Multi-frame tracking to confirm detections"
@@ -208,7 +199,6 @@ properties:
         maximum: 300
         default: 30
         description: "Frames to keep track alive without new detection"
-
   severity:
     type: object
     description: "Severity classification based on bbox size and confidence"
@@ -241,14 +231,12 @@ properties:
             minimum: 0
             default: 15000
             description: "Max normalized bbox area for 'medium' severity (px²)"
-          # above medium_max_area = high
           confidence_multiplier:
             type: number
             minimum: 0.0
             maximum: 2.0
             default: 1.0
             description: "Multiplier for confidence in severity calculation"
-
   gps:
     type: object
     description: "GPS receiver configuration"
@@ -283,7 +271,6 @@ properties:
             type: boolean
             default: false
             description: "Use IMU/speed data for interpolation if available"
-
   buffer:
     type: object
     description: "Local SQLite write-ahead log for durability"
@@ -305,7 +292,6 @@ properties:
         maximum: 365
         default: 7
         description: "Delete successfully uploaded records after N days"
-
   uplink:
     type: object
     description: "Backend uplink configuration"
@@ -341,7 +327,6 @@ properties:
         maximum: 60
         default: 5.0
         description: "Random jitter added to backoff"
-
   logging:
     type: object
     description: "Logging configuration"

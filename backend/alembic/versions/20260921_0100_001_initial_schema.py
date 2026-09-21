@@ -1,28 +1,14 @@
-"""Initial schema with PostGIS
-
-Revision ID: 001
-Revises:
-Create Date: 2026-09-21 01:00:00.000000
-
-"""
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 import geoalchemy2
-
-# revision identifiers, used by Alembic.
 revision = '001'
 down_revision = None
 branch_labels = None
 depends_on = None
-
-
 def upgrade() -> None:
-    # Enable PostGIS extension
     op.execute("CREATE EXTENSION IF NOT EXISTS postgis")
     op.execute("CREATE EXTENSION IF NOT EXISTS postgis_topology")
-
-    # Create devices table
     op.create_table(
         'devices',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
@@ -36,8 +22,6 @@ def upgrade() -> None:
         sa.UniqueConstraint('api_key_hash')
     )
     op.create_index(op.f('ix_devices_id'), 'devices', ['id'], unique=False)
-
-    # Create users table
     op.create_table(
         'users',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
@@ -49,8 +33,6 @@ def upgrade() -> None:
         sa.UniqueConstraint('email')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-
-    # Create detections table with PostGIS geography
     op.create_table(
         'detections',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
@@ -77,8 +59,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_detections_geohash'), 'detections', ['geohash'], unique=False)
     op.create_index('idx_detections_location', 'detections', ['location'], unique=False, postgresql_using='gist')
     op.create_index('idx_detections_status_time', 'detections', ['status', 'detected_at'], unique=False)
-
-    # Create detection_events table
     op.create_table(
         'detection_events',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
@@ -91,8 +71,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_detection_events_detection_id'), 'detection_events', ['detection_id'], unique=False)
-
-    # Create notifications table
     op.create_table(
         'notifications',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
@@ -103,8 +81,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_notifications_detection_id'), 'notifications', ['detection_id'], unique=False)
-
-
 def downgrade() -> None:
     op.drop_index(op.f('ix_notifications_detection_id'), table_name='notifications')
     op.drop_table('notifications')
