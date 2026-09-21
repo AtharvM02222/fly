@@ -15,7 +15,7 @@ from datetime import datetime
 from config import load_config
 from pipeline.buffer import DetectionBuffer
 from pipeline.capture import CameraCapture
-from pipeline.detector import MockDetector
+from pipeline.detector import MockDetector, RealDetector
 from pipeline.geo import GPSReader
 from pipeline.severity import bbox_area, calculate_severity
 from pipeline.tracker import Tracker
@@ -45,14 +45,21 @@ def run_pipeline(config, use_mock_detector: bool, logger: logging.Logger) -> Non
 
     # Initialize modules
     capture = CameraCapture(config.camera)
-    detector = MockDetector(config.detector) if use_mock_detector else None
+    
+    # Initialize detector based on type
+    if use_mock_detector:
+        logger.info("Using MOCK detector (synthetic detections)")
+        detector = MockDetector(config.detector)
+    else:
+        logger.info("Using REAL detector (ONNX/TensorRT)")
+        detector = RealDetector(config.detector)
+        logger.info(f"Detector backend: {detector.backend_name}")
+        logger.info(f"Model version: {detector.get_model_version()}")
+    
     tracker = Tracker(config.tracker)
     gps_reader = GPSReader(config.gps)
     buffer = DetectionBuffer(config.buffer)
     uplink = UplinkService(config.backend, config.uplink, config.device.api_key)
-
-    if detector is None:
-        raise RuntimeError("Real detector not yet implemented. Use --detector mock")
 
     logger.info("Opening buffer...")
     buffer.open()
@@ -160,14 +167,28 @@ def run_pipeline(config, use_mock_detector: bool, logger: logging.Logger) -> Non
 
                 last_uplink_time = now
 
-            # Periodic status
+            # Periodic status and metrics
             if frame_count % 100 == 0:
                 stats = buffer.get_stats()
-                logger.info(
-                    f"Processed {frame_count} frames, "
-                    f"{detection_count} confirmed detections, "
-                    f"{stats['pending']} pending upload"
-                )
+                
+                # Log performance metrics
+                if not use_mock_detector and hasattr(detector, 'get_latency_stats'):
+                    latency_stats = detector.get_latency_stats()
+                    error_rate = detector.get_error_rate()
+                    
+                    logger.info(
+                        f"Processed {frame_count} frames, "
+                        f"{detection_count} confirmed detections, "
+                        f"{stats['pending']} pending upload | "
+                        f"Latency p50/p95={latency_stats['p50']:.1f}/{latency_stats['p95']:.1f}ms, "
+                        f"Error rate={error_rate:.2%}"
+                    )
+                else:
+                    logger.info(
+                        f"Processed {frame_count} frames, "
+                        f"{detection_count} confirmed detections, "
+                        f"{stats['pending']} pending upload"
+                    )
 
     except KeyboardInterrupt:
         logger.info("Shutting down...")
