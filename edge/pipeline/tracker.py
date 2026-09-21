@@ -26,6 +26,7 @@ class Track:
     hits: int = 0
     age: int = 0
     confirmed: bool = False
+    buffered: bool = False
 class Tracker:
     def __init__(self, config: TrackerConfig):
         self.config = config
@@ -75,6 +76,6 @@ class Tracker:
         ]
         for track_id in stale_tracks:
             del self.tracks[track_id]
-        return [track for track in self.tracks.values() if track.confirmed]
+        return [track for track in self.tracks.values() if track.confirmed and not track.buffered]
     def reset(self) -> None:
         self.tracks.clear()

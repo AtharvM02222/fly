@@ -55,6 +55,7 @@ def run_pipeline(config, use_mock_detector: bool, logger: logging.Logger) -> Non
                 logger.debug(f"Frame {frame_number}: {len(detections)} raw detection(s)")
             confirmed_tracks = tracker.update(detections)
             for track in confirmed_tracks:
+                track.buffered = True
                 gps_reading = gps_reader.read()
                 if gps_reading is None:
                     logger.warning("GPS unavailable and interpolation failed - skipping")
@@ -62,6 +63,19 @@ def run_pipeline(config, use_mock_detector: bool, logger: logging.Logger) -> Non
                 area = bbox_area(track.bbox_xyxy)
                 severity = calculate_severity(area, track.confidence, config.severity)
                 client_detection_id = str(uuid.uuid4())
+                image_base64 = None
+                try:
+                    x1, y1, x2, y2 = map(int, track.bbox_xyxy)
+                    x1, y1 = max(0, x1), max(0, y1)
+                    x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
+                    if x2 > x1 and y2 > y1:
+                        cropped = frame[y1:y2, x1:x2]
+                        import cv2
+                        _, buffer = cv2.imencode('.jpg', cropped, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                        import base64
+                        image_base64 = base64.b64encode(buffer).decode('utf-8')
+                except Exception as e:
+                    logger.warning(f"Failed to crop/encode image: {e}")
                 try:
                     buffer.write(
                         client_detection_id=client_detection_id,
@@ -72,6 +86,14 @@ def run_pipeline(config, use_mock_detector: bool, logger: logging.Logger) -> Non
                         bbox={
                             "x1": track.bbox_xyxy[0],
                             "y1": track.bbox_xyxy[1],
+                            "x2": track.bbox_xyxy[2],
+                            "y2": track.bbox_xyxy[3],
+                        },
+                        model_version=detector.get_model_version(),
+                        detected_at=datetime.utcnow(),
+                        is_interpolated=gps_reading.is_interpolated,
+                        image_base64=image_base64,
+                    )
                             "x2": track.bbox_xyxy[2],
                             "y2": track.bbox_xyxy[3],
                         },
