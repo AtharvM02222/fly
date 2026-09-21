@@ -26,6 +26,8 @@ from app.db.models.detection import Detection, DetectionEvent
 from app.db.models.device import Device
 from app.db.models.user import User
 from app.db.session import get_db
+from app.services.dedup import DeduplicationService
+from app.services.notifier import NotificationService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/detections", tags=["detections"])
@@ -43,7 +45,12 @@ async def ingest_detections(
     Authenticates via device API key.
     Returns 202 Accepted with per-item status.
     Idempotent on client_detection_id.
+    Performs deduplication and creates notifications for new detections.
     """
+    # Initialize services
+    dedup_service = DeduplicationService()
+    notification_service = NotificationService()
+
     results: list[DetectionIngestItemResult] = []
     accepted = 0
     rejected = 0
@@ -107,6 +114,18 @@ async def ingest_detections(
                 created_at=datetime.utcnow(),
             )
             db.add(event)
+
+            # Run deduplication
+            parent = await dedup_service.check_and_merge(
+                detection,
+                det_data.latitude,
+                det_data.longitude,
+                db,
+            )
+
+            # Create notification only if NOT merged
+            if parent is None:
+                await notification_service.notify(detection, db)
 
             results.append(
                 DetectionIngestItemResult(
