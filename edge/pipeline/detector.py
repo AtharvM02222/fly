@@ -89,9 +89,14 @@ class RealDetector(DetectorInterface):
             )
         checksum_str = self.config.weights_checksum
         if checksum_str == "sha256:placeholder":
+            if not getattr(self.config, 'allow_unverified_weights', False):
+                raise ValueError(
+                    "Checksum is 'sha256:placeholder'. Set real checksum or enable "
+                    "'allow_unverified_weights: true' in config for testing only."
+                )
             logger.warning(
-                "Checksum is 'placeholder' - skipping verification. "
-                "Set real checksum in production!"
+                "Running with UNVERIFIED weights (allow_unverified_weights=true). "
+                "DO NOT USE IN PRODUCTION!"
             )
             return
         try:
@@ -177,6 +182,8 @@ class RealDetector(DetectorInterface):
             except Exception as e:
                 logger.warning(f"Warm-up iteration {i+1} failed: {e}")
         self.latencies.clear()
+        self.total_frames = 0
+        self.error_count = 0
         logger.info("Warm-up complete")
     def detect(self, frame: np.ndarray) -> List[Detection]:
         self.total_frames += 1
@@ -229,11 +236,20 @@ class RealDetector(DetectorInterface):
         input_tensor = np.expand_dims(img_transposed, axis=0)
         return input_tensor, scale, pad_w, pad_h
     def _run_inference(self, input_tensor: np.ndarray) -> np.ndarray:
-        outputs = self.session.run(
-            self.output_names,
-            {self.input_name: input_tensor}
-        )
-        return outputs[0]
+        import concurrent.futures
+        timeout_seconds = getattr(self.config, 'inference_timeout_seconds', 5.0)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(
+                self.session.run,
+                self.output_names,
+                {self.input_name: input_tensor}
+            )
+            try:
+                outputs = future.result(timeout=timeout_seconds)
+                return outputs[0]
+            except concurrent.futures.TimeoutError:
+                logger.error(f"Inference timeout after {timeout_seconds}s")
+                raise TimeoutError(f"Inference exceeded {timeout_seconds}s timeout")
     def _postprocess(
         self,
         outputs: np.ndarray,
