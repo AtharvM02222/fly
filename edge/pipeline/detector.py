@@ -1,13 +1,20 @@
 """Detection interface and implementations."""
 
+import hashlib
+import logging
 import time
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass
-from typing import List
+from pathlib import Path
+from typing import List, Optional, Tuple
 
+import cv2
 import numpy as np
 
 from config import DetectorConfig
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

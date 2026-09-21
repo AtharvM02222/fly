@@ -8,9 +8,9 @@ requests>=2.31.0
 opencv-python>=4.9.0
 numpy>=1.26.0
 
-# Inference backends (will be used in Phase 5)
-# onnxruntime-gpu>=1.17.0  # For CUDA
-# onnxruntime>=1.17.0      # For CPU fallback
+# Inference backends
+onnxruntime-gpu>=1.17.0  # For CUDA (install fails gracefully on non-CUDA systems)
+onnxruntime>=1.17.0      # CPU fallback
 
 # GPS
 pyserial>=3.5
