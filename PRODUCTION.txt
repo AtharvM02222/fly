@@ -1,0 +1,228 @@
+DRONE-CDS PRODUCTION DEPLOYMENT
+================================
+
+PREREQUISITES
+-------------
+1. Docker & Docker Compose installed
+2. NVIDIA GPU with CUDA support (for edge devices)
+3. PostgreSQL 15+ with PostGIS 3.3+
+4. Domain name with SSL certificate (optional but recommended)
+
+STEP 1: MODEL TRAINING
+----------------------
+1. Prepare your pothole dataset:
+   
+   python edge/prepare_dataset.py \
+     --images /path/to/images \
+     --labels /path/to/labels \
+     --output ./dataset
+
+2. Train YOLOv8n model:
+
+   cd edge
+   python train_model.py \
+     --data ./dataset/data.yaml \
+     --epochs 100 \
+     --batch 16 \
+     --device 0 \
+     --export-onnx \
+     --validate
+
+3. Copy trained model to production:
+
+   cp runs/detect/pothole_detector/weights/best.onnx models/detector.onnx
+   
+   For TensorRT (Jetson only):
+   python train_model.py --export-trt
+   cp runs/detect/pothole_detector/weights/best.engine models/detector.engine
+
+4. Calculate model checksum:
+
+   sha256sum models/detector.onnx
+
+5. Update edge/config/default.yaml with model path and checksum
+
+STEP 2: BACKEND DEPLOYMENT
+--------------------------
+1. Create .env file in project root:
+
+   cat > .env << EOF
+   POSTGRES_USER=dronecds
+   POSTGRES_PASSWORD=<strong-password>
+   POSTGRES_DB=dronecds
+   SECRET_KEY=<generate-with-openssl-rand-hex-32>
+   ADMIN_PASSWORD=<admin-password>
+   EOF
+
+2. Update infra/docker-compose.prod.yml with your settings
+
+3. Deploy services:
+
+   ./deploy.sh production
+
+4. Verify deployment:
+
+   ./test_system.sh
+
+5. Create devices via API:
+
+   curl -X POST http://localhost:8000/api/v1/devices \
+     -H "Authorization: Bearer <token>" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"drone-01","device_type":"drone"}'
+
+6. Save the device API key for edge configuration
+
+STEP 3: EDGE DEVICE SETUP
+--------------------------
+1. Install dependencies on Jetson/RPi:
+
+   cd edge
+   pip install -r requirements.txt
+
+2. Install TensorRT (Jetson only):
+
+   Follow NVIDIA JetPack installation guide
+
+3. Update edge/config/default.yaml:
+
+   device:
+     device_id: <device-uuid-from-backend>
+     api_key: <device-api-key-from-backend>
+   
+   uplink:
+     base_url: https://your-backend-domain.com/api/v1
+
+4. Test camera:
+
+   python main.py --detector mock
+
+5. Deploy with real detector:
+
+   python main.py --detector real
+
+6. Set up systemd service (optional):
+
+   sudo cp systemd/dronecds-edge.service /etc/systemd/system/
+   sudo systemctl enable dronecds-edge
+   sudo systemctl start dronecds-edge
+
+STEP 4: DASHBOARD CONFIGURATION
+--------------------------------
+1. Update dashboard/.env.local:
+
+   NEXT_PUBLIC_API_URL=https://your-backend-domain.com/api/v1
+
+2. Build and deploy:
+
+   cd dashboard
+   npm run build
+   npm start
+
+   Or use Docker:
+   docker-compose -f infra/docker-compose.prod.yml up -d dashboard
+
+STEP 5: SSL/HTTPS SETUP (Production)
+-------------------------------------
+1. Obtain SSL certificate (Let's Encrypt recommended)
+
+2. Configure nginx reverse proxy:
+
+   server {
+       listen 443 ssl http2;
+       server_name api.yourdomain.com;
+       
+       ssl_certificate /path/to/cert.pem;
+       ssl_certificate_key /path/to/key.pem;
+       
+       location / {
+           proxy_pass http://localhost:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+       }
+   }
+
+3. Update edge and dashboard configs with HTTPS URLs
+
+MONITORING & MAINTENANCE
+------------------------
+1. View logs:
+   
+   docker-compose logs -f backend
+   docker-compose logs -f dashboard
+   
+   Edge device:
+   journalctl -u dronecds-edge -f
+
+2. Database backups:
+
+   docker-compose exec postgres pg_dump -U dronecds dronecds > backup.sql
+
+3. Monitor disk usage (images can accumulate):
+
+   du -sh /var/lib/dronecds/images
+
+4. Check detection rates:
+
+   psql -U dronecds -c "SELECT COUNT(*), status FROM detections GROUP BY status;"
+
+TROUBLESHOOTING
+---------------
+Backend not starting:
+  - Check PostgreSQL connection
+  - Verify environment variables
+  - Check logs: docker-compose logs backend
+
+Edge device errors:
+  - Verify camera connection: ls /dev/video*
+  - Check model file exists and checksum matches
+  - Test with mock detector first
+  - Check GPS if using hardware GPS
+
+Dashboard not loading:
+  - Verify API_URL in environment
+  - Check CORS settings in backend
+  - Clear browser cache
+
+High latency:
+  - Check TensorRT is being used (not ONNX CPU)
+  - Reduce camera resolution
+  - Increase buffer batch size
+
+SECURITY CHECKLIST
+------------------
+[ ] Change all default passwords
+[ ] Use HTTPS/SSL in production
+[ ] Restrict PostgreSQL to localhost only
+[ ] Enable firewall on backend server
+[ ] Use strong JWT secret key
+[ ] Rotate API keys periodically
+[ ] Enable rate limiting (optional)
+[ ] Review CORS origins whitelist
+
+PERFORMANCE TUNING
+------------------
+Edge Device:
+  - Use TensorRT on Jetson (5-10x faster than ONNX)
+  - Adjust camera FPS based on vehicle speed
+  - Tune detection confidence threshold (0.3-0.5)
+  - Enable power mode: sudo nvpmodel -m 0 (Jetson)
+
+Backend:
+  - Increase PostgreSQL shared_buffers
+  - Add database indexes if needed
+  - Enable connection pooling
+  - Consider Redis cache for notifications
+
+Dashboard:
+  - Enable CDN for static assets
+  - Compress images
+  - Enable browser caching
+
+SUPPORT
+-------
+For issues or questions, check:
+  - System logs
+  - Database connectivity
+  - Model file integrity
+  - API endpoint availability
