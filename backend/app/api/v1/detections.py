@@ -24,6 +24,7 @@ from app.db.models.user import User
 from app.db.session import get_db
 from app.services.dedup import DeduplicationService
 from app.services.notifier import NotificationService
+from app.services.storage import StorageService
 logger = get_logger(__name__)
 router = APIRouter(prefix="/detections", tags=["detections"])
 @router.post("", response_model=DetectionBatchIngestResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -34,6 +35,7 @@ async def ingest_detections(
 ) -> DetectionBatchIngestResponse:
     dedup_service = DeduplicationService()
     notification_service = NotificationService()
+    storage_service = StorageService()
     results: list[DetectionIngestItemResult] = []
     accepted = 0
     rejected = 0
@@ -59,6 +61,11 @@ async def ingest_detections(
             point = Point(det_data.longitude, det_data.latitude)
             location_wkb = from_shape(point, srid=4326)
             image_url = None
+            if det_data.image_base64:
+                image_url = storage_service.save_detection_image(
+                    det_data.image_base64,
+                    uuid.uuid4()
+                )
             detection = Detection(
                 client_detection_id=det_data.client_detection_id,
                 device_id=device.id,

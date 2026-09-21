@@ -19,6 +19,21 @@ class DeduplicationService:
         self.geohash_precision = geohash_precision
         self.distance_meters = distance_meters
         self.time_window_minutes = time_window_minutes
+    def _get_neighbor_geohashes(self, geohash_str: str) -> list[str]:
+        try:
+            neighbors = []
+            neighbors.append(gh.neighbors(geohash_str)['n'])
+            neighbors.append(gh.neighbors(geohash_str)['ne'])
+            neighbors.append(gh.neighbors(geohash_str)['e'])
+            neighbors.append(gh.neighbors(geohash_str)['se'])
+            neighbors.append(gh.neighbors(geohash_str)['s'])
+            neighbors.append(gh.neighbors(geohash_str)['sw'])
+            neighbors.append(gh.neighbors(geohash_str)['w'])
+            neighbors.append(gh.neighbors(geohash_str)['nw'])
+            return neighbors
+        except Exception as e:
+            logger.warning(f"Failed to get geohash neighbors: {e}")
+            return []
     async def check_and_merge(
         self,
         detection: Detection,
@@ -27,8 +42,11 @@ class DeduplicationService:
         db: AsyncSession,
     ) -> Optional[Detection]:
         time_threshold = detection.detected_at - timedelta(minutes=self.time_window_minutes)
+        target_geohash = detection.geohash
+        neighbor_geohashes = self._get_neighbor_geohashes(target_geohash)
+        all_geohashes = [target_geohash] + neighbor_geohashes
         query = select(Detection).where(
-            Detection.geohash == detection.geohash,
+            Detection.geohash.in_(all_geohashes),
             Detection.detected_at >= time_threshold,
             Detection.detected_at <= detection.detected_at,
             Detection.status != "fixed",
