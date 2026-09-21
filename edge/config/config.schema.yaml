@@ -1,0 +1,369 @@
+# Drone-CDS Edge Configuration Schema
+# This file documents the complete configuration surface for the edge pipeline.
+# All config values are validated against this schema on startup.
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "Edge Pipeline Configuration"
+type: object
+required:
+  - backend
+  - device
+  - camera
+  - detector
+  - tracker
+  - severity
+  - buffer
+  - uplink
+
+properties:
+  backend:
+    type: object
+    description: "Backend API connection settings"
+    required: [url, timeout_seconds]
+    properties:
+      url:
+        type: string
+        format: uri
+        description: "Backend API base URL (e.g., http://backend:8000/api/v1)"
+      timeout_seconds:
+        type: integer
+        minimum: 5
+        maximum: 300
+        default: 30
+
+  device:
+    type: object
+    description: "Device identity and authentication"
+    required: [id, api_key]
+    properties:
+      id:
+        type: string
+        pattern: "^[a-zA-Z0-9_-]+$"
+        description: "Unique device identifier"
+      api_key:
+        type: string
+        minLength: 32
+        description: "Device authentication API key"
+      device_type:
+        type: string
+        enum: [drone, vehicle, fixed]
+        default: drone
+
+  camera:
+    type: object
+    description: "Camera capture configuration"
+    required: [source, frame_sample_rate]
+    properties:
+      source:
+        oneOf:
+          - type: integer
+            minimum: 0
+            description: "Local camera index (0, 1, 2...)"
+          - type: string
+            description: "Video file path or RTSP URL"
+        description: "Camera source: index, file path, or RTSP stream"
+      frame_sample_rate:
+        type: integer
+        minimum: 1
+        maximum: 60
+        default: 3
+        description: "Process every Nth frame (decouples from capture FPS)"
+      queue_max_size:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+        description: "Max frames in queue to prevent backpressure"
+      width:
+        type: integer
+        minimum: 640
+        maximum: 3840
+        default: 1920
+      height:
+        type: integer
+        minimum: 480
+        maximum: 2160
+        default: 1080
+
+  detector:
+    type: object
+    description: "YOLOv8n detector configuration"
+    required:
+      - model_path
+      - confidence_threshold
+      - nms_iou_threshold
+      - input_size
+    properties:
+      model_path:
+        type: string
+        description: "Path to ONNX model file (e.g., models/pothole.onnx)"
+      engine_path:
+        type: string
+        description: "Path to TensorRT engine file (optional, for Jetson)"
+      weights_checksum:
+        type: string
+        pattern: "^(sha256|md5):[a-fA-F0-9]+$"
+        description: "Expected checksum of weights file (algorithm:hash)"
+      backend:
+        type: string
+        enum: [auto, tensorrt, onnx-cuda, onnx-cpu]
+        default: auto
+        description: "Inference backend preference"
+      confidence_threshold:
+        type: number
+        minimum: 0.0
+        maximum: 1.0
+        default: 0.5
+        description: "Minimum confidence to keep detection"
+      nms_iou_threshold:
+        type: number
+        minimum: 0.0
+        maximum: 1.0
+        default: 0.45
+        description: "IoU threshold for Non-Maximum Suppression"
+      max_detections:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
+        description: "Maximum detections per frame"
+      input_size:
+        type: integer
+        enum: [320, 416, 512, 640, 768, 896, 1024]
+        default: 640
+        description: "Model input size (must match training)"
+      quantization:
+        type: string
+        enum: [none, fp16, int8]
+        default: none
+        description: "Quantization mode (explicit opt-in, validate before use)"
+      warmup_iterations:
+        type: integer
+        minimum: 1
+        maximum: 20
+        default: 5
+        description: "Number of warm-up inferences on startup"
+      inference_timeout_seconds:
+        type: number
+        minimum: 0.1
+        maximum: 60.0
+        default: 5.0
+        description: "Per-frame inference timeout"
+      latency_budget_ms:
+        type: number
+        minimum: 10
+        maximum: 1000
+        default: 100
+        description: "Target p95 latency; warn if exceeded"
+      normalization:
+        type: object
+        description: "Preprocessing normalization (must match export)"
+        required: [mean, std, scale]
+        properties:
+          mean:
+            type: array
+            items:
+              type: number
+            minItems: 3
+            maxItems: 3
+            default: [0.0, 0.0, 0.0]
+            description: "Per-channel mean"
+          std:
+            type: array
+            items:
+              type: number
+            minItems: 3
+            maxItems: 3
+            default: [1.0, 1.0, 1.0]
+            description: "Per-channel standard deviation"
+          scale:
+            type: number
+            default: 255.0
+            description: "Input scaling factor (typically 255.0 for uint8→[0,1])"
+      model_version:
+        type: string
+        description: "Model version identifier (written to detection records)"
+        default: "v1.0"
+
+  tracker:
+    type: object
+    description: "Multi-frame tracking to confirm detections"
+    required: [iou_threshold, min_hits, max_age]
+    properties:
+      iou_threshold:
+        type: number
+        minimum: 0.0
+        maximum: 1.0
+        default: 0.3
+        description: "IoU threshold for associating detection with existing track"
+      min_hits:
+        type: integer
+        minimum: 1
+        maximum: 20
+        default: 3
+        description: "Consecutive hits required to confirm track"
+      max_age:
+        type: integer
+        minimum: 1
+        maximum: 300
+        default: 30
+        description: "Frames to keep track alive without new detection"
+
+  severity:
+    type: object
+    description: "Severity classification based on bbox size and confidence"
+    required: [camera_height_m, camera_angle_deg, thresholds]
+    properties:
+      camera_height_m:
+        type: number
+        minimum: 0.5
+        maximum: 100.0
+        default: 2.0
+        description: "Camera mounting height above ground (meters)"
+      camera_angle_deg:
+        type: number
+        minimum: 0
+        maximum: 90
+        default: 45
+        description: "Camera angle from horizontal (degrees)"
+      thresholds:
+        type: object
+        description: "Severity classification formula"
+        required: [low_max_area, medium_max_area]
+        properties:
+          low_max_area:
+            type: number
+            minimum: 0
+            default: 5000
+            description: "Max normalized bbox area for 'low' severity (px²)"
+          medium_max_area:
+            type: number
+            minimum: 0
+            default: 15000
+            description: "Max normalized bbox area for 'medium' severity (px²)"
+          # above medium_max_area = high
+          confidence_multiplier:
+            type: number
+            minimum: 0.0
+            maximum: 2.0
+            default: 1.0
+            description: "Multiplier for confidence in severity calculation"
+
+  gps:
+    type: object
+    description: "GPS receiver configuration"
+    required: [source]
+    properties:
+      source:
+        type: string
+        description: "GPS source: serial port (/dev/ttyUSB0), 'mock', or 'file:/path'"
+      baud_rate:
+        type: integer
+        enum: [4800, 9600, 19200, 38400, 57600, 115200]
+        default: 9600
+      timeout_seconds:
+        type: number
+        minimum: 0.1
+        maximum: 60.0
+        default: 2.0
+      interpolation:
+        type: object
+        description: "GPS dropout handling"
+        properties:
+          enabled:
+            type: boolean
+            default: true
+          max_age_seconds:
+            type: number
+            minimum: 1
+            maximum: 300
+            default: 10
+            description: "Max age of last GPS fix for interpolation"
+          use_imu:
+            type: boolean
+            default: false
+            description: "Use IMU/speed data for interpolation if available"
+
+  buffer:
+    type: object
+    description: "Local SQLite write-ahead log for durability"
+    required: [db_path]
+    properties:
+      db_path:
+        type: string
+        default: "edge/buffer.db"
+        description: "Path to SQLite buffer database"
+      max_retries:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+        description: "Max upload attempts before marking detection failed"
+      cleanup_after_days:
+        type: integer
+        minimum: 1
+        maximum: 365
+        default: 7
+        description: "Delete successfully uploaded records after N days"
+
+  uplink:
+    type: object
+    description: "Backend uplink configuration"
+    required: [batch_size, interval_seconds, retry_backoff_base]
+    properties:
+      batch_size:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 10
+        description: "Number of detections per POST batch"
+      interval_seconds:
+        type: number
+        minimum: 1
+        maximum: 3600
+        default: 30
+        description: "Seconds between uplink attempts"
+      retry_backoff_base:
+        type: number
+        minimum: 1.0
+        maximum: 10.0
+        default: 2.0
+        description: "Exponential backoff base (delay = base^attempt)"
+      retry_max_delay_seconds:
+        type: integer
+        minimum: 10
+        maximum: 3600
+        default: 300
+        description: "Cap on retry delay"
+      jitter_max_seconds:
+        type: number
+        minimum: 0
+        maximum: 60
+        default: 5.0
+        description: "Random jitter added to backoff"
+
+  logging:
+    type: object
+    description: "Logging configuration"
+    properties:
+      level:
+        type: string
+        enum: [DEBUG, INFO, WARNING, ERROR, CRITICAL]
+        default: INFO
+      format:
+        type: string
+        enum: [json, text]
+        default: json
+      output:
+        type: string
+        enum: [stdout, file]
+        default: stdout
+      file_path:
+        type: string
+        description: "Log file path if output=file"
+      metrics_interval_seconds:
+        type: integer
+        minimum: 1
+        maximum: 3600
+        default: 60
+        description: "Interval for logging performance metrics"
