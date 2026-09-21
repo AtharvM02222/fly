@@ -12,6 +12,13 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
+try:
+    import onnxruntime as ort
+    HAS_ONNX = True
+except ImportError:
+    ort = None
+    HAS_ONNX = False
+
 from config import DetectorConfig
 
 logger = logging.getLogger(__name__)
@@ -239,7 +246,10 @@ class RealDetector(DetectorInterface):
         Raises:
             RuntimeError: If no backend is available
         """
-        import onnxruntime as ort
+        if not HAS_ONNX:
+            raise RuntimeError(
+                "ONNX Runtime not installed. Install with: pip install onnxruntime"
+            )
         
         # Check backend preference
         backend_pref = self.config.backend.lower()
@@ -280,7 +290,6 @@ class RealDetector(DetectorInterface):
         # Fall back to CPU
         if backend_pref in ("auto", "onnx-cpu") or self.session is None:
             try:
-                import onnxruntime as ort
                 self.session = ort.InferenceSession(
                     str(self.model_path),
                     providers=["CPUExecutionProvider"]

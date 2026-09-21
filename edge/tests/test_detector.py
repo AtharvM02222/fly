@@ -1,6 +1,7 @@
 """Tests for real detector implementation."""
 
 import hashlib
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -9,7 +10,15 @@ import numpy as np
 import pytest
 
 from config import DetectorConfig
-from pipeline.detector import Detection, MockDetector, RealDetector
+from pipeline.detector import Detection, MockDetector
+
+# Skip RealDetector import if onnxruntime not available
+try:
+    from pipeline.detector import RealDetector
+    HAS_REAL_DETECTOR = True
+except (ImportError, RuntimeError):
+    RealDetector = None
+    HAS_REAL_DETECTOR = False
 
 
 @pytest.fixture
@@ -418,6 +427,7 @@ class TestConfidenceThreshold:
         assert mask[0] == True
 
 
+@pytest.mark.skipif(not HAS_REAL_DETECTOR, reason="onnxruntime not installed")
 class TestChecksumVerification:
     """Tests for model weights checksum verification."""
 
@@ -430,11 +440,25 @@ class TestChecksumVerification:
         detector_config.model_path = str(model_path)
         detector_config.weights_checksum = "sha256:placeholder"
         
-        # Mock ONNX Runtime to avoid actual model loading
-        with patch("onnxruntime.InferenceSession"):
-            with patch("pipeline.detector.RealDetector._warmup"):
+        # Mock at module level before importing RealDetector
+        with patch.dict('sys.modules', {'onnxruntime': MagicMock()}):
+            # Reimport to get mocked version
+            import importlib
+            import pipeline.detector as detector_module
+            importlib.reload(detector_module)
+            
+            mock_session = MagicMock()
+            mock_session.get_inputs.return_value = [MagicMock(name="images")]
+            mock_session.get_outputs.return_value = [MagicMock(name="output0")]
+            mock_session.get_providers.return_value = ["CPUExecutionProvider"]
+            
+            detector_module.ort.InferenceSession.return_value = mock_session
+            detector_module.ort.get_available_providers.return_value = ["CPUExecutionProvider"]
+            
+            with patch.object(detector_module.RealDetector, '_warmup', lambda self: None):
                 # Should not raise
-                detector = RealDetector(detector_config)
+                detector = detector_module.RealDetector(detector_config)
+                assert detector is not None
 
     def test_checksum_mismatch_raises(self, detector_config, tmp_path):
         """Test checksum mismatch raises ValueError."""
@@ -466,11 +490,23 @@ class TestChecksumVerification:
         detector_config.model_path = str(model_path)
         detector_config.weights_checksum = f"sha256:{correct_hash}"
         
-        # Mock ONNX Runtime
-        with patch("onnxruntime.InferenceSession"):
-            with patch("pipeline.detector.RealDetector._warmup"):
+        with patch.dict('sys.modules', {'onnxruntime': MagicMock()}):
+            import importlib
+            import pipeline.detector as detector_module
+            importlib.reload(detector_module)
+            
+            mock_session = MagicMock()
+            mock_session.get_inputs.return_value = [MagicMock(name="images")]
+            mock_session.get_outputs.return_value = [MagicMock(name="output0")]
+            mock_session.get_providers.return_value = ["CPUExecutionProvider"]
+            
+            detector_module.ort.InferenceSession.return_value = mock_session
+            detector_module.ort.get_available_providers.return_value = ["CPUExecutionProvider"]
+            
+            with patch.object(detector_module.RealDetector, '_warmup', lambda self: None):
                 # Should not raise
-                detector = RealDetector(detector_config)
+                detector = detector_module.RealDetector(detector_config)
+                assert detector is not None
 
     def test_checksum_file_not_found(self, detector_config):
         """Test missing model file raises ValueError."""
@@ -481,6 +517,7 @@ class TestChecksumVerification:
             RealDetector(detector_config)
 
 
+@pytest.mark.skipif(not HAS_REAL_DETECTOR, reason="onnxruntime not installed")
 class TestLatencyTracking:
     """Tests for latency tracking and budget warnings."""
 
@@ -491,9 +528,21 @@ class TestLatencyTracking:
         detector_config.model_path = str(model_path)
         detector_config.weights_checksum = "sha256:placeholder"
         
-        with patch("onnxruntime.InferenceSession"):
-            with patch("pipeline.detector.RealDetector._warmup"):
-                detector = RealDetector(detector_config)
+        with patch.dict('sys.modules', {'onnxruntime': MagicMock()}):
+            import importlib
+            import pipeline.detector as detector_module
+            importlib.reload(detector_module)
+            
+            mock_session = MagicMock()
+            mock_session.get_inputs.return_value = [MagicMock(name="images")]
+            mock_session.get_outputs.return_value = [MagicMock(name="output0")]
+            mock_session.get_providers.return_value = ["CPUExecutionProvider"]
+            
+            detector_module.ort.InferenceSession.return_value = mock_session
+            detector_module.ort.get_available_providers.return_value = ["CPUExecutionProvider"]
+            
+            with patch.object(detector_module.RealDetector, '_warmup', lambda self: None):
+                detector = detector_module.RealDetector(detector_config)
                 detector.latencies.clear()  # Clear warm-up latencies
                 
                 stats = detector.get_latency_stats()
@@ -509,9 +558,21 @@ class TestLatencyTracking:
         detector_config.model_path = str(model_path)
         detector_config.weights_checksum = "sha256:placeholder"
         
-        with patch("onnxruntime.InferenceSession"):
-            with patch("pipeline.detector.RealDetector._warmup"):
-                detector = RealDetector(detector_config)
+        with patch.dict('sys.modules', {'onnxruntime': MagicMock()}):
+            import importlib
+            import pipeline.detector as detector_module
+            importlib.reload(detector_module)
+            
+            mock_session = MagicMock()
+            mock_session.get_inputs.return_value = [MagicMock(name="images")]
+            mock_session.get_outputs.return_value = [MagicMock(name="output0")]
+            mock_session.get_providers.return_value = ["CPUExecutionProvider"]
+            
+            detector_module.ort.InferenceSession.return_value = mock_session
+            detector_module.ort.get_available_providers.return_value = ["CPUExecutionProvider"]
+            
+            with patch.object(detector_module.RealDetector, '_warmup', lambda self: None):
+                detector = detector_module.RealDetector(detector_config)
                 
                 # Add synthetic latencies
                 detector.latencies.clear()
@@ -531,9 +592,21 @@ class TestLatencyTracking:
         detector_config.model_path = str(model_path)
         detector_config.weights_checksum = "sha256:placeholder"
         
-        with patch("onnxruntime.InferenceSession"):
-            with patch("pipeline.detector.RealDetector._warmup"):
-                detector = RealDetector(detector_config)
+        with patch.dict('sys.modules', {'onnxruntime': MagicMock()}):
+            import importlib
+            import pipeline.detector as detector_module
+            importlib.reload(detector_module)
+            
+            mock_session = MagicMock()
+            mock_session.get_inputs.return_value = [MagicMock(name="images")]
+            mock_session.get_outputs.return_value = [MagicMock(name="output0")]
+            mock_session.get_providers.return_value = ["CPUExecutionProvider"]
+            
+            detector_module.ort.InferenceSession.return_value = mock_session
+            detector_module.ort.get_available_providers.return_value = ["CPUExecutionProvider"]
+            
+            with patch.object(detector_module.RealDetector, '_warmup', lambda self: None):
+                detector = detector_module.RealDetector(detector_config)
                 
                 detector.total_frames = 100
                 detector.error_count = 5
