@@ -1,0 +1,12 @@
+ultralytics>=8.1.0
+torch>=2.1.0
+torchvision>=0.16.0
+onnx>=1.15.0
+onnxruntime>=1.17.0
+opencv-python>=4.9.0
+numpy>=1.26.0
+pyyaml>=6.0.1
+matplotlib>=3.8.0
+pillow>=10.2.0
+scipy>=1.12.0
+tensorrt>=8.6.0
