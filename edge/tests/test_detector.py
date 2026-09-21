@@ -15,6 +15,8 @@ from pipeline.detector import Detection, MockDetector, RealDetector
 @pytest.fixture
 def detector_config():
     """Minimal detector config for testing."""
+    from config.loader import NormalizationConfig
+    
     return DetectorConfig(
         model_path="models/test_pothole.onnx",
         engine_path=None,
@@ -28,11 +30,11 @@ def detector_config():
         warmup_iterations=1,
         inference_timeout_seconds=5.0,
         latency_budget_ms=100,
-        normalization={
-            "mean": [0.0, 0.0, 0.0],
-            "std": [1.0, 1.0, 1.0],
-            "scale": 255.0,
-        },
+        normalization=NormalizationConfig(
+            mean=[0.0, 0.0, 0.0],
+            std=[1.0, 1.0, 1.0],
+            scale=255.0,
+        ),
         model_version="test-v1.0",
     )
 
