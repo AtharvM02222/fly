@@ -1,0 +1,166 @@
+DRONE-CDS API QUICK REFERENCE
+==============================
+
+BASE URL: http://localhost:8000/api/v1
+
+AUTHENTICATION
+--------------
+POST /auth/login
+Body: {"email": "user@example.com", "password": "password"}
+Returns: {"access_token": "jwt-token", "user": {...}}
+
+Use token in headers:
+Authorization: Bearer <token>
+
+DEVICES
+-------
+GET    /devices              List all devices
+POST   /devices              Create device (admin only)
+GET    /devices/{id}         Get device details
+PATCH  /devices/{id}         Update device
+POST   /devices/{id}/apikey  Regenerate API key (admin only)
+
+DETECTIONS
+----------
+GET    /detections           List detections (paginated)
+  Query params:
+    - bbox: min_lon,min_lat,max_lon,max_lat
+    - status: new|confirmed|assigned|fixed|verified
+    - severity: low|medium|high
+    - device_id: UUID
+    - page: int (default 1)
+    - page_size: int (default 50, max 100)
+
+GET    /detections/{id}      Get detection with events
+PATCH  /detections/{id}      Update detection status (operator+)
+  Body: {"status": "confirmed", "note": "optional note"}
+
+POST   /detections           Ingest detection batch (device API key)
+  Body: {"detections": [{
+    "client_detection_id": "unique-id",
+    "latitude": 37.7749,
+    "longitude": -122.4194,
+    "severity": "medium",
+    "confidence": 0.85,
+    "bbox": {"x1": 0.1, "y1": 0.2, "x2": 0.5, "y2": 0.6},
+    "model_version": "v1.0",
+    "detected_at": "2024-01-01T12:00:00Z"
+  }]}
+
+NOTIFICATIONS
+-------------
+GET    /notifications        List notifications
+  Query params:
+    - status: unread|read
+
+PATCH  /notifications/{id}/read  Mark notification as read
+
+REPORTS
+-------
+GET    /reports/export       Export detections to CSV
+  Query params:
+    - format: csv (only CSV supported currently)
+    - bbox: min_lon,min_lat,max_lon,max_lat
+    - status: filter by status
+    - severity: filter by severity
+    - device_id: filter by device
+    - start_date: ISO datetime
+    - end_date: ISO datetime
+
+HEALTH
+------
+GET    /healthz              Health check
+
+EXAMPLE WORKFLOWS
+-----------------
+
+1. Login and create device:
+
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@dronecds.local","password":"changeme123"}'
+
+TOKEN="<access_token from response>"
+
+curl -X POST http://localhost:8000/api/v1/devices \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"drone-01","device_type":"drone"}'
+
+2. Ingest detection from edge device:
+
+DEVICE_API_KEY="<device api key>"
+
+curl -X POST http://localhost:8000/api/v1/detections \
+  -H "X-API-Key: $DEVICE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "detections": [{
+      "client_detection_id": "det-001",
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "severity": "high",
+      "confidence": 0.92,
+      "bbox": {"x1": 0.2, "y1": 0.3, "x2": 0.6, "y2": 0.7},
+      "model_version": "v1.0",
+      "detected_at": "2024-01-15T10:30:00Z"
+    }]
+  }'
+
+3. Query detections in bounding box:
+
+curl "http://localhost:8000/api/v1/detections?bbox=-122.5,37.7,-122.3,37.8&status=new"
+
+4. Update detection status:
+
+curl -X PATCH http://localhost:8000/api/v1/detections/<detection-id> \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"confirmed","note":"Verified by field operator"}'
+
+5. Export detections to CSV:
+
+curl "http://localhost:8000/api/v1/reports/export?format=csv&status=confirmed" \
+  -H "Authorization: Bearer $TOKEN" \
+  -o detections.csv
+
+STATUS CODES
+------------
+200 - OK
+201 - Created
+202 - Accepted
+400 - Bad Request
+401 - Unauthorized
+403 - Forbidden
+404 - Not Found
+500 - Internal Server Error
+
+ERROR RESPONSE FORMAT
+--------------------
+{
+  "error_code": "VALIDATION_ERROR",
+  "message": "Human readable message",
+  "details": {...}
+}
+
+RATE LIMITS
+-----------
+No rate limits currently enforced.
+Consider implementing for production use.
+
+USER ROLES
+----------
+admin    - Full access to all endpoints
+operator - Can update detections, view all data
+viewer   - Read-only access
+
+PAGINATION
+----------
+List endpoints return:
+{
+  "detections": [...],
+  "total": 150,
+  "page": 1,
+  "page_size": 50,
+  "has_next": true
+}
