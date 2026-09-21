@@ -1,0 +1,373 @@
+DRONE-CDS TESTING GUIDE
+=======================
+
+MANUAL TESTING CHECKLIST
+-------------------------
+
+BACKEND API TESTING
+-------------------
+
+1. Health Check
+   [ ] GET /healthz returns 200
+   [ ] Database status shows "ok"
+
+2. Authentication
+   [ ] POST /auth/login with valid credentials returns token
+   [ ] POST /auth/login with invalid credentials returns 401
+   [ ] Endpoints reject requests without token
+
+3. Device Management
+   [ ] Admin can create devices
+   [ ] Operator cannot create devices
+   [ ] Device API key is generated
+   [ ] Device API key can be regenerated
+   [ ] Device list shows correct devices
+
+4. Detection Ingestion
+   [ ] Edge device can POST detections with API key
+   [ ] Invalid API key returns 401
+   [ ] Duplicate client_detection_id is rejected
+   [ ] Detections appear in database
+   [ ] Geohash is calculated correctly
+
+5. Deduplication
+   [ ] Detections within 150m and 5min are merged
+   [ ] Detections outside range are not merged
+   [ ] merged_into field is set correctly
+   [ ] Only one notification per detection group
+
+6. Detection Queries
+   [ ] GET /detections with bbox filters correctly
+   [ ] GET /detections with status filter works
+   [ ] GET /detections with severity filter works
+   [ ] Pagination works correctly
+   [ ] GET /detections/{id} returns full details
+
+7. Status Updates
+   [ ] Operator can update detection status
+   [ ] Viewer cannot update detection status
+   [ ] Status changes create events
+   [ ] Event history is visible
+
+8. Notifications
+   [ ] New detections create notifications
+   [ ] Merged detections don't create notifications
+   [ ] GET /notifications returns unread notifications
+   [ ] PATCH /notifications/{id}/read marks as read
+
+9. Export
+   [ ] GET /reports/export returns CSV
+   [ ] CSV contains correct headers
+   [ ] CSV data matches detections
+   [ ] Filters work in export
+
+EDGE DEVICE TESTING
+-------------------
+
+1. Configuration
+   [ ] default.yaml loads correctly
+   [ ] Environment variables override config
+   [ ] Invalid config shows clear error
+
+2. Camera
+   [ ] Camera capture starts successfully
+   [ ] Frames are captured at expected FPS
+   [ ] Resolution matches config
+
+3. Mock Detector
+   [ ] --detector mock runs without errors
+   [ ] Synthetic detections are generated
+   [ ] Confidence values are realistic
+
+4. Real Detector
+   [ ] Model file loads successfully
+   [ ] Checksum validation passes
+   [ ] TensorRT backend is selected (Jetson)
+   [ ] ONNX GPU backend works (CUDA available)
+   [ ] ONNX CPU backend works (fallback)
+   [ ] Inference latency is acceptable
+   [ ] Detections have correct bbox format
+
+5. Tracker
+   [ ] Detections are tracked across frames
+   [ ] Track IDs are stable
+   [ ] Tracks are removed after no detection
+
+6. GPS
+   [ ] GPS coordinates are read (if hardware GPS)
+   [ ] Mock GPS provides reasonable coordinates
+   [ ] GPS interpolation works
+
+7. Severity
+   [ ] Bbox area is calculated correctly
+   [ ] Severity levels are assigned correctly
+   [ ] Confidence affects severity
+
+8. Buffer
+   [ ] Detections are buffered to SQLite
+   [ ] Buffer survives program restart
+   [ ] Batch uploads work
+
+9. Uplink
+   [ ] Detections upload successfully
+   [ ] Failed uploads are retried
+   [ ] Exponential backoff works
+   [ ] Network errors are handled gracefully
+
+DASHBOARD TESTING
+-----------------
+
+1. Login Page
+   [ ] Login form renders
+   [ ] Valid credentials redirect to map
+   [ ] Invalid credentials show error
+   [ ] Remember me works (optional)
+
+2. Map View
+   [ ] Map loads and displays tiles
+   [ ] Detections appear as markers
+   [ ] Marker colors match severity
+   [ ] New detections pulse
+   [ ] Clicking marker shows popup
+   [ ] "View Details" navigates correctly
+
+3. Marker Clustering
+   [ ] Multiple nearby markers cluster
+   [ ] Cluster size reflects count
+   [ ] Clicking cluster zooms in
+   [ ] Individual markers appear when zoomed
+
+4. Filters
+   [ ] Status filter updates markers
+   [ ] Severity filter updates markers
+   [ ] Date range filter works
+   [ ] Clear filters resets view
+   [ ] Statistics update with filters
+
+5. Detection Detail Page
+   [ ] Image displays correctly
+   [ ] Bounding box overlay is accurate
+   [ ] Metadata is complete
+   [ ] Google Maps link works
+   [ ] Status update form appears (operator+)
+
+6. Status Updates
+   [ ] Status dropdown shows all options
+   [ ] Note field is optional
+   [ ] Update succeeds and refreshes view
+   [ ] Event appears in timeline
+   [ ] Viewer role cannot update (403)
+
+7. Device List
+   [ ] All devices are shown
+   [ ] Online/offline status is accurate
+   [ ] Last seen timestamp is correct
+   [ ] Detection count is accurate
+
+8. Reports Page
+   [ ] Date range selectors work
+   [ ] Status filter works
+   [ ] Severity filter works
+   [ ] CSV export downloads file
+   [ ] CSV contains correct data
+
+9. Notifications Page
+   [ ] Unread notifications are highlighted
+   [ ] Notification count is accurate
+   [ ] Clicking notification navigates to detection
+   [ ] Mark all read works
+   [ ] Badge updates in real-time (if polling enabled)
+
+10. Navigation
+    [ ] Sidebar links work
+    [ ] Back button works
+    [ ] Protected routes redirect to login
+    [ ] Logo link returns to map
+
+11. Responsive Design (optional)
+    [ ] Mobile view renders correctly
+    [ ] Tablet view works
+    [ ] Desktop view is optimal
+
+INTEGRATION TESTING
+-------------------
+
+1. End-to-End Flow
+   [ ] Start all services with docker-compose
+   [ ] Create admin user
+   [ ] Login to dashboard
+   [ ] Create device via dashboard (if implemented) or API
+   [ ] Run edge device with mock detector
+   [ ] Verify detections appear in dashboard
+   [ ] Update detection status in dashboard
+   [ ] Export detections to CSV
+   [ ] Verify CSV contains detection
+
+2. Deduplication Flow
+   [ ] Run edge device
+   [ ] Generate 3 detections at same location within 2 minutes
+   [ ] Verify only 1 appears in dashboard (others merged)
+   [ ] Check merged_into field in database
+
+3. Multi-Device
+   [ ] Create 2 devices
+   [ ] Run edge on both with different device IDs
+   [ ] Verify detections from both appear
+   [ ] Filter by device_id works
+
+PERFORMANCE TESTING
+-------------------
+
+1. Edge Device
+   [ ] Measure inference latency: <100ms (TensorRT), <200ms (ONNX)
+   [ ] Monitor CPU/GPU usage
+   [ ] Check memory usage over time (no leaks)
+   [ ] Test with 30 FPS camera input
+
+2. Backend
+   [ ] Ingest 100 detections: <5s
+   [ ] Query 1000 detections: <1s
+   [ ] Deduplication check: <10ms per detection
+   [ ] Export 10000 detections: <10s
+
+3. Dashboard
+   [ ] Load map with 1000 markers: <3s
+   [ ] Cluster rendering: <1s
+   [ ] Filter application: <500ms
+
+STRESS TESTING
+--------------
+
+1. Concurrent Uploads
+   [ ] 5 edge devices uploading simultaneously
+   [ ] No deadlocks or race conditions
+   [ ] All detections are saved
+
+2. Large Dataset
+   [ ] Import 100k detections
+   [ ] Query performance remains acceptable
+   [ ] Dashboard loads without timeout
+
+3. Long Running
+   [ ] Edge device runs for 24 hours
+   [ ] No memory leaks
+   [ ] Buffer doesn't grow unbounded
+   [ ] Connection recovers after network outage
+
+ERROR HANDLING
+--------------
+
+1. Network Failures
+   [ ] Edge device handles API down gracefully
+   [ ] Detections are buffered during outage
+   [ ] Upload resumes when network returns
+   [ ] Dashboard shows error when API down
+
+2. Invalid Data
+   [ ] Backend rejects invalid coordinates
+   [ ] Backend rejects invalid confidence (not 0-1)
+   [ ] Backend rejects invalid severity
+   [ ] Edge handles corrupted frames
+
+3. Resource Exhaustion
+   [ ] Edge handles low disk space
+   [ ] Backend handles connection pool exhaustion
+   [ ] Dashboard handles slow API responses
+
+SECURITY TESTING
+----------------
+
+1. Authentication
+   [ ] Expired tokens are rejected
+   [ ] Invalid tokens return 401
+   [ ] Tokens are not logged
+   [ ] Password is hashed in database
+
+2. Authorization
+   [ ] Viewer cannot update detections
+   [ ] Viewer cannot create devices
+   [ ] Operator cannot create users
+   [ ] API keys are scoped to device
+
+3. Input Validation
+   [ ] SQL injection attempts are blocked
+   [ ] XSS attempts are sanitized
+   [ ] Large payloads are rejected
+   [ ] Invalid UUIDs return 400
+
+BROWSER COMPATIBILITY
+---------------------
+[ ] Chrome (latest)
+[ ] Firefox (latest)
+[ ] Safari (latest)
+[ ] Edge (latest)
+
+TEST DATA GENERATION
+--------------------
+
+Generate test detections:
+
+python << EOF
+import requests
+import random
+from datetime import datetime, timedelta
+
+api_key = "your-device-api-key"
+base_lat, base_lon = 37.7749, -122.4194
+
+for i in range(100):
+    lat = base_lat + random.uniform(-0.01, 0.01)
+    lon = base_lon + random.uniform(-0.01, 0.01)
+    
+    detection = {
+        "detections": [{
+            "client_detection_id": f"test-{i}",
+            "latitude": lat,
+            "longitude": lon,
+            "severity": random.choice(["low", "medium", "high"]),
+            "confidence": random.uniform(0.5, 0.95),
+            "bbox": {
+                "x1": random.uniform(0, 0.5),
+                "y1": random.uniform(0, 0.5),
+                "x2": random.uniform(0.5, 1.0),
+                "y2": random.uniform(0.5, 1.0)
+            },
+            "model_version": "v1.0",
+            "detected_at": (datetime.utcnow() - timedelta(hours=random.randint(0, 48))).isoformat() + "Z"
+        }]
+    }
+    
+    resp = requests.post(
+        "http://localhost:8000/api/v1/detections",
+        headers={"X-API-Key": api_key},
+        json=detection
+    )
+    print(f"Detection {i}: {resp.status_code}")
+EOF
+
+AUTOMATED TESTING
+-----------------
+
+Backend (requires pytest, removed in cleanup):
+  cd backend
+  pytest
+
+Edge (requires pytest, removed in cleanup):
+  cd edge
+  pytest
+
+Dashboard (requires jest, not implemented):
+  cd dashboard
+  npm test
+
+CONTINUOUS MONITORING
+---------------------
+
+Production monitoring checklist:
+[ ] Set up health check monitoring
+[ ] Configure alerts for API downtime
+[ ] Monitor database disk usage
+[ ] Track detection ingestion rate
+[ ] Monitor edge device uptime
+[ ] Log aggregation (optional)
+[ ] Error tracking (optional)
