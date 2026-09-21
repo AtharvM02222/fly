@@ -75,8 +75,9 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 # Include routers
 app.include_router(healthz_router)
 
-# TODO: Add v1 API routes
-# app.include_router(api_router, prefix=settings.api_v1_prefix)
+# API v1 routes
+from .api.v1 import api_router
+app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/")
