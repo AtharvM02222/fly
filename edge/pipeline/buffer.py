@@ -17,6 +17,7 @@ class BufferedDetection:
     model_version: str
     detected_at: str
     is_interpolated: bool
+    image_base64: Optional[str]
     retry_count: int
     uploaded: bool
 class DetectionBuffer:
@@ -43,6 +44,7 @@ class DetectionBuffer:
                 model_version TEXT,
                 detected_at TEXT NOT NULL,
                 is_interpolated INTEGER NOT NULL,
+                image_base64 TEXT,
                 retry_count INTEGER DEFAULT 0,
                 uploaded INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL,
@@ -62,10 +64,15 @@ class DetectionBuffer:
         model_version: str,
         detected_at: datetime,
         is_interpolated: bool,
+        image_base64: Optional[str] = None,
     ) -> int:
         if not self.conn:
             raise RuntimeError("Buffer not opened")
         cursor = self.conn.execute(
+            """INSERT INTO detections (
+                client_detection_id, latitude, longitude, severity, confidence,
+                bbox, model_version, detected_at, is_interpolated, image_base64, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 client_detection_id,
                 latitude,
@@ -76,6 +83,7 @@ class DetectionBuffer:
                 model_version,
                 detected_at.isoformat(),
                 1 if is_interpolated else 0,
+                image_base64,
                 datetime.utcnow().isoformat(),
             ),
         )
@@ -85,6 +93,10 @@ class DetectionBuffer:
         if not self.conn:
             raise RuntimeError("Buffer not opened")
         cursor = self.conn.execute(
+            """SELECT * FROM detections
+               WHERE uploaded = 0 AND retry_count < ?
+               ORDER BY created_at ASC
+               LIMIT ?""",
             (self.config.max_retries, limit),
         )
         detections = []
@@ -92,6 +104,20 @@ class DetectionBuffer:
             detections.append(
                 BufferedDetection(
                     id=row["id"],
+                    client_detection_id=row["client_detection_id"],
+                    latitude=row["latitude"],
+                    longitude=row["longitude"],
+                    severity=row["severity"],
+                    confidence=row["confidence"],
+                    bbox=json.loads(row["bbox"]) if row["bbox"] else None,
+                    model_version=row["model_version"],
+                    detected_at=row["detected_at"],
+                    is_interpolated=bool(row["is_interpolated"]),
+                    image_base64=row.get("image_base64"),
+                    retry_count=row["retry_count"],
+                    uploaded=bool(row["uploaded"]),
+                )
+            )
                     client_detection_id=row["client_detection_id"],
                     latitude=row["latitude"],
                     longitude=row["longitude"],
