@@ -18,6 +18,7 @@ pynmea2>=1.19.0
 
 # Geospatial
 geopy>=2.4.1
+python-geohash>=0.8.5
 
 # Development
 pytest>=7.4.4
